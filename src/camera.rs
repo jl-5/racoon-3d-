@@ -21,7 +21,7 @@ impl Camera {
         use std::f32::consts::FRAC_PI_2;
         let MousePos { y: dy, x: dx } = input.mouse_delta();
         self.pitch -= super::DT as f32 * dy as f32 / 10.0;
-        self.yaw -= super::DT as f32 * dx as f32 / 10.0;
+        self.yaw += super::DT as f32 * dx as f32 / 10.0;
         // Make sure pitch isn't directly up or down (that would put
         // `eye` and `at` at the same z, which is Bad)
         self.pitch = self.pitch.clamp(-FRAC_PI_2 + 0.001, FRAC_PI_2 - 0.001);
