@@ -34,7 +34,7 @@ fn main() {
         translation: Vec3 {
             x: 0.0,
             y: 0.0,
-            z: -100.0,
+            z: 10.0,
         }
         .into(),
         rotation: Quat::from_rotation_y(0.0).into(),
@@ -94,7 +94,7 @@ fn main() {
             translation: Vec3 {
                 x: rng.gen_range(-400.0..400.0),
                 y: rng.gen_range(-300.0..300.0),
-                z: rng.gen_range(100.0..500.0),
+                z: rng.gen_range(-500.0..-200.0),
             }
             .into(),
             rotation: Quat::from_euler(
@@ -176,24 +176,24 @@ fn main() {
                     if current_yaw_degrees < 0.0 {
                         current_yaw_degrees += 360.0;
                         }
-                    let mut current_yaw_radians = current_yaw_degrees * (PI / 180.0);
-                    if input.is_key_down(winit::event::VirtualKeyCode::Left) || input.is_key_down(winit::event::VirtualKeyCode::A) {
+                    let current_yaw_radians = current_yaw_degrees * (PI / 180.0);
+                    if  input.is_key_down(winit::event::VirtualKeyCode::Right) || input.is_key_down(winit::event::VirtualKeyCode::D){
                         player_transform.translation[0] -= player_speed * DT * f32::cos(current_yaw_radians);
                         player_transform.translation[2] += player_speed * DT * f32::sin(current_yaw_radians);
                     }
                   
-                    else if input.is_key_down(winit::event::VirtualKeyCode::Right) || input.is_key_down(winit::event::VirtualKeyCode::D) {
+                    else if input.is_key_down(winit::event::VirtualKeyCode::Left) || input.is_key_down(winit::event::VirtualKeyCode::A) {
                         player_transform.translation[0] += player_speed * DT * f32::cos(current_yaw_radians);
                         player_transform.translation[2] -= player_speed * DT * f32::sin(current_yaw_radians);
                     }
 
-                    if input.is_key_down(winit::event::VirtualKeyCode::Up) || input.is_key_down(winit::event::VirtualKeyCode::W) {
+                    if input.is_key_down(winit::event::VirtualKeyCode::Down) || input.is_key_down(winit::event::VirtualKeyCode::S) {
                         player_transform.translation[0] += player_speed * DT * f32::sin(current_yaw_radians);
                         player_transform.translation[2] -= player_speed * DT * f32::cos(current_yaw_radians);
 
                     }
-                    else if input.is_key_down(winit::event::VirtualKeyCode::Down) || input.is_key_down(winit::event::VirtualKeyCode::S) {
-                        player_transform.translation[0] += player_speed * DT * f32::sin(current_yaw_radians);
+                    else if  input.is_key_down(winit::event::VirtualKeyCode::Up) || input.is_key_down(winit::event::VirtualKeyCode::W){
+                        player_transform.translation[0] -= player_speed * DT * f32::sin(current_yaw_radians);
                         player_transform.translation[2] += player_speed * DT * f32::cos(current_yaw_radians);
                     }
 

@@ -20,7 +20,7 @@ impl Camera {
         use frenderer::input::MousePos;
         use std::f32::consts::FRAC_PI_2;
         let MousePos { y: dy, x: dx } = input.mouse_delta();
-        self.pitch -= super::DT as f32 * dy as f32 / 10.0;
+        self.pitch += super::DT as f32 * dy as f32 / 10.0;
         self.yaw += super::DT as f32 * dx as f32 / 10.0;
         // Make sure pitch isn't directly up or down (that would put
         // `eye` and `at` at the same z, which is Bad)
@@ -30,10 +30,10 @@ impl Camera {
     }
     pub fn update_camera(&self, c: &mut Camera3D) {
         // The camera's position is offset from the player's position.
-        c.translation = (self.player_pos
+        c.translation = self.player_pos.into();
         // So, <0, 25, 2> in the player's local frame will need
         // to be rotated into world coordinates. Multiply by the player's rotation:
-            + self.player_rot * Vec3::new(0.0, 25.0, 2.0)).into();
+        //    + self.player_rot * Vec3::new(0.0, 25.0, 2.0)).into();
 
         // Next is the trickiest part of the code.
         // We want to rotate the camera around the way the player is
@@ -47,7 +47,7 @@ impl Camera {
         // to the camera's position to get the target point.
         // So, we're adding a position and an offset to obtain a new position.
 
-        c.rotation = (self.player_rot * (Quat::from_rotation_x(self.pitch) * Quat::from_rotation_y(self.yaw))).into();
+        c.rotation = ((Quat::from_rotation_x(self.pitch) * Quat::from_rotation_y(self.yaw))).into();
 
     }
 }
