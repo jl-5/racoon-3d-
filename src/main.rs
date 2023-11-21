@@ -1,6 +1,13 @@
-use frenderer::{input, Camera3D, Transform3D, wgpu::{self, Color}};
+use assets_manager::{asset::Gltf, AssetCache};
+use frenderer::{
+    input,
+    meshes::MeshGroup,
+    wgpu::{self, Color},
+    Camera3D, PollsterRuntime, Renderer, Transform3D,
+};
 use glam::*;
-use rand::Rng;
+use rand::{rngs::ThreadRng, Rng};
+use ultraviolet::Rotor3;
 
 use crate::camera::Camera;
 
@@ -12,9 +19,179 @@ mod camera;
 use std::f32::consts::PI;
 
 const DT: f32 = 1.0 / 60.0;
-const BACKGROUND_COLOR: wgpu::Color = Color {r: 0.0/255.0, g: 200.0/255.0, b: 255.0/255.0, a: 1.0};
+const BACKGROUND_COLOR: wgpu::Color = Color {
+    r: 0.0 / 255.0,
+    g: 200.0 / 255.0,
+    b: 255.0 / 255.0,
+    a: 1.0,
+};
 
 const player_speed: f32 = 100.0;
+
+/* create mesh group with multiple textures
+ */
+fn create_mesh_flatten_multiple(
+    cache: &AssetCache,
+    frend: &mut Renderer<PollsterRuntime>,
+    sprite: &str,
+    instance_count: u32,
+) -> MeshGroup {
+    let sprite_gltf = cache.load::<assets_manager::asset::Gltf>(&sprite).unwrap();
+    let asset = sprite_gltf.read();
+
+    // add lines for asset
+    let mut mats: Vec<_> = asset
+        .document
+        .materials()
+        .map(|m| m.pbr_metallic_roughness().base_color_factor())
+        .collect();
+    if mats.is_empty() {
+        mats.push([1.0, 0.0, 0.0, 1.0]);
+    }
+    let mut verts = Vec::with_capacity(1024);
+    let mut indices = Vec::with_capacity(1024);
+    let mut entries = Vec::with_capacity(1);
+    for mesh in asset.document.meshes() {
+        let mut entry = frenderer::meshes::MeshEntry {
+            instance_count,
+            submeshes: Vec::with_capacity(1),
+        };
+        for prim in mesh.primitives() {
+            let reader = prim.reader(|b| Some(asset.get_buffer(&b)));
+            let vtx_old_len = verts.len();
+            assert_eq!(prim.mode(), gltf::mesh::Mode::Triangles);
+            verts.extend(reader.read_positions().unwrap().map(|position| {
+                frenderer::meshes::FlatVertex::new(
+                    position,
+                    prim.material().index().unwrap_or(0) as u32,
+                )
+            }));
+            let idx_old_len = indices.len();
+            match reader.read_indices() {
+                None => indices.extend(0..(verts.len() - vtx_old_len) as u32),
+                Some(index_reader) => indices.extend(index_reader.into_u32()),
+            };
+            entry.submeshes.push(frenderer::meshes::SubmeshData {
+                indices: idx_old_len as u32..(indices.len() as u32),
+                vertex_base: vtx_old_len as i32,
+            })
+        }
+        assert!(!entry.submeshes.is_empty());
+        entries.push(dbg!(entry));
+    }
+    frend
+        .flats
+        .add_mesh_group(&frend.gpu, &mats, verts, indices, entries)
+}
+
+/*
+create mesh for specified sprite
+@params:
+    - sprite (GameObject): has information to create sprite texture
+ */
+fn create_mesh_single_texture(
+    cache: &AssetCache,
+    frend: &mut Renderer<PollsterRuntime>,
+    sprite: &str,
+) -> MeshGroup {
+    let sprite_gltf = cache.load::<assets_manager::asset::Gltf>(&sprite).unwrap();
+    let game_sprite = sprite_gltf.read();
+    let sprite_img = game_sprite.get_image_by_index(0); // game sprite is asset in frenderermain
+    let sprite_tex = frend.gpu.create_array_texture(
+        &[&sprite_img.to_rgba8()],
+        frenderer::wgpu::TextureFormat::Rgba8Unorm,
+        (sprite_img.width(), sprite_img.height()),
+        Some("texture"), // string concatenation
+    );
+
+    const COUNT: usize = 10;
+    let prim = game_sprite
+        .document
+        .meshes()
+        .next()
+        .unwrap()
+        .primitives()
+        .next()
+        .unwrap();
+    let reader = prim.reader(|b| Some(game_sprite.get_buffer_by_index(b.index())));
+
+    let verts: Vec<_> = reader
+        .read_positions()
+        .unwrap()
+        .zip(reader.read_tex_coords(0).unwrap().into_f32())
+        .map(|(position, uv)| frenderer::meshes::Vertex::new(position, uv, 0))
+        .collect();
+    let vert_count = verts.len();
+
+    let sprite_mesh = frend.meshes.add_mesh_group(
+        &frend.gpu,
+        &sprite_tex,
+        verts,
+        (0..vert_count as u32).collect(),
+        vec![frenderer::meshes::MeshEntry {
+            instance_count: COUNT as u32,
+            submeshes: vec![frenderer::meshes::SubmeshEntry {
+                vertex_base: 0,
+                indices: 0..vert_count as u32,
+            }],
+        }],
+    );
+    return sprite_mesh;
+}
+
+/* perform transformation on mesh
+@params:
+- flat (bool): flattened mesh or not (i.e. MeshGroup was created from create_mesh_flatten_multiple)
+*/
+fn transform_mesh(
+    rng: &mut ThreadRng,
+    frend: &mut Renderer<PollsterRuntime>,
+    mesh: MeshGroup,
+    flat: bool,
+    scale_start: f32,
+    scale_end: f32,
+) {
+    if !flat {
+        for trf in frend.meshes.get_meshes_mut(mesh, 0) {
+            *trf = Transform3D {
+                translation: Vec3 {
+                    x: rng.gen_range(-400.0..400.0),
+                    y: rng.gen_range(-300.0..300.0),
+                    z: rng.gen_range(-500.0..-200.0),
+                }
+                .into(),
+                rotation: Quat::from_euler(
+                    EulerRot::XYZ,
+                    rng.gen_range(0.0..std::f32::consts::TAU),
+                    rng.gen_range(0.0..std::f32::consts::TAU),
+                    rng.gen_range(0.0..std::f32::consts::TAU),
+                )
+                .into(),
+                scale: rng.gen_range(scale_start..scale_end),
+            };
+        }
+        frend.meshes.upload_meshes(&frend.gpu, mesh, 0, ..);
+    } else {
+        for trf in frend.flats.get_meshes_mut(mesh, 0) {
+            *trf = Transform3D {
+                translation: Vec3 {
+                    x: rng.gen_range(-400.0..400.0),
+                    y: rng.gen_range(-300.0..300.0),
+                    z: rng.gen_range(-500.0..-100.0),
+                }
+                .into(),
+                rotation: Rotor3::from_euler_angles(
+                    rng.gen_range(0.0..std::f32::consts::TAU),
+                    rng.gen_range(0.0..std::f32::consts::TAU),
+                    rng.gen_range(0.0..std::f32::consts::TAU),
+                )
+                .into_quaternion_array(),
+                scale: rng.gen_range(scale_start..scale_end),
+            };
+        }
+        frend.flats.upload_meshes(&frend.gpu, mesh, 0, ..);
+    }
+}
 
 fn main() {
     let event_loop = winit::event_loop::EventLoop::new();
@@ -26,15 +203,12 @@ fn main() {
     let cache = assets_manager::AssetCache::with_source(source);
     let mut frend = frenderer::with_default_runtime(&window);
     let mut input = input::Input::default();
-    let fox = cache
-        .load::<assets_manager::asset::Gltf>("Fox")
-        .unwrap();
-    
+
     let mut camera = Camera3D {
         translation: Vec3 {
             x: 0.0,
             y: 0.0,
-            z: 10.0,
+            z: -100.0,
         }
         .into(),
         rotation: Quat::from_rotation_y(0.0).into(),
@@ -46,68 +220,31 @@ fn main() {
     };
     frend.meshes.set_camera(&frend.gpu, camera);
 
-    let mut player_transform: Transform3D = Transform3D { translation: (camera.translation), scale: (1.0), rotation: (camera.rotation) };
+    let mut player_transform: Transform3D = Transform3D {
+        translation: (camera.translation),
+        scale: (1.0),
+        rotation: (camera.rotation),
+    };
 
-    let mut fpcamera: Camera = Camera {pitch: 0.0, yaw: 0.0, player_pos: player_transform.translation.into(), player_rot: Quat::from_array(player_transform.rotation)};
+    let mut fpcamera: Camera = Camera {
+        pitch: 0.0,
+        yaw: 0.0,
+        player_pos: player_transform.translation.into(),
+        player_rot: Quat::from_array(player_transform.rotation),
+    };
 
     let mut rng = rand::thread_rng();
-    const COUNT: usize = 10;
-    let fox = fox.read();
-    let fox_img = fox.get_image_by_index(0);
-    let fox_tex = frend.gpu.create_array_texture(
-        &[&fox_img.to_rgba8()],
-        frenderer::wgpu::TextureFormat::Rgba8Unorm,
-        (fox_img.width(), fox_img.height()),
-        Some("fox texture"),
-    );
-    let prim = fox
-        .document
-        .meshes()
-        .next()
-        .unwrap()
-        .primitives()
-        .next()
-        .unwrap();
-    let reader = prim.reader(|b| Some(fox.get_buffer_by_index(b.index())));
-    let verts: Vec<_> = reader
-        .read_positions()
-        .unwrap()
-        .zip(reader.read_tex_coords(0).unwrap().into_f32())
-        .map(|(position, uv)| frenderer::meshes::Vertex::new(position, uv, 0))
-        .collect();
-    let vert_count = verts.len();
-    let fox_mesh = frend.meshes.add_mesh_group(
-        &frend.gpu,
-        &fox_tex,
-        verts,
-        (0..vert_count as u32).collect(),
-        vec![frenderer::meshes::MeshEntry {
-            instance_count: COUNT as u32,
-            submeshes: vec![frenderer::meshes::SubmeshEntry {
-                vertex_base: 0,
-                indices: 0..vert_count as u32,
-            }],
-        }],
-    );
-    for trf in frend.meshes.get_meshes_mut(fox_mesh, 0) {
-        *trf = Transform3D {
-            translation: Vec3 {
-                x: rng.gen_range(-400.0..400.0),
-                y: rng.gen_range(-300.0..300.0),
-                z: rng.gen_range(-500.0..-200.0),
-            }
-            .into(),
-            rotation: Quat::from_euler(
-                EulerRot::XYZ,
-                rng.gen_range(0.0..std::f32::consts::TAU),
-                rng.gen_range(0.0..std::f32::consts::TAU),
-                rng.gen_range(0.0..std::f32::consts::TAU),
-            )
-            .into(),
-            scale: rng.gen_range(0.5..1.0),
-        };
-    }
-    frend.meshes.upload_meshes(&frend.gpu, fox_mesh, 0, ..);
+
+    // defines meshes using create_mesh_single_texture or create_gltf_flatten_multiple
+    let fox_mesh = create_mesh_single_texture(&cache, &mut frend, "Fox");
+    let raccoon_mesh = create_mesh_flatten_multiple(&cache, &mut frend, "scene", 10);
+    let world_mesh = create_mesh_flatten_multiple(&cache, &mut frend, "raccoon", 10);
+
+    // apply transformations
+    transform_mesh(&mut rng, &mut frend, fox_mesh, false, 0.5, 1.0);
+    transform_mesh(&mut rng, &mut frend, raccoon_mesh, true, 12.0, 20.0);
+    transform_mesh(&mut rng, &mut frend, world_mesh, true, 50.0, 100.0);
+
     const DT_FUDGE_AMOUNT: f32 = 0.0002;
     const DT_MAX: f32 = DT * 5.0;
     const TIME_SNAPS: [f32; 5] = [15.0, 30.0, 60.0, 120.0, 144.0];
@@ -146,55 +283,65 @@ fn main() {
                     acc -= DT;
                     // rotate every fox a random amount
                     /*
-                     for trf in frend.meshes.get_meshes_mut(fox_mesh, 0) {
-                         trf.rotation = (Quat::from_array(trf.rotation)
-                             * Quat::from_euler(
-                                 EulerRot::XYZ,
-                                 rng.gen_range(0.0..(std::f32::consts::TAU * DT)),
-                                 rng.gen_range(0.0..(std::f32::consts::TAU * DT)),
-                                 rng.gen_range(0.0..(std::f32::consts::TAU * DT)),
-                            ))
-                         .into();
-                     }
-                     camera.translation[2] -= 100.0 * DT;
-                     */
-
-                    frend.meshes.upload_meshes(&frend.gpu, fox_mesh, 0, ..);
+                    for trf in frend.meshes.get_meshes_mut(fox_mesh, 0) {
+                        trf.rotation = (Quat::from_array(trf.rotation)
+                            * Quat::from_euler(
+                                EulerRot::XYZ,
+                                rng.gen_range(0.0..(std::f32::consts::TAU * DT)),
+                                rng.gen_range(0.0..(std::f32::consts::TAU * DT)),
+                                rng.gen_range(0.0..(std::f32::consts::TAU * DT)),
+                           ))
+                        .into();
+                    }
+                    camera.translation[2] -= 100.0 * DT;
+                    */
+                    // frend.meshes.upload_meshes(&frend.gpu, fox_mesh, 0, ..);
                     //println!("tick");
                     //update_game();
                     // camera.screen_pos[0] += 0.01;
                     input.next_frame();
 
+                    // MOVEMENT!
+                    // arrow key or WASD movement
+                    // player_transform.translation[2] goes UP when we walk forwards (yaw = 0)
 
-                     // MOVEMENT!
-                        // arrow key or WASD movement
-                        // player_transform.translation[2] goes UP when we walk forwards (yaw = 0)
-
-                        // TODO: make it so movement now deals with sin and cos to move in the right direction based on rotation
+                    // TODO: make it so movement now deals with sin and cos to move in the right direction based on rotation
 
                     let mut current_yaw_degrees = fpcamera.yaw * 180.0 / PI;
                     if current_yaw_degrees < 0.0 {
                         current_yaw_degrees += 360.0;
-                        }
+                    }
                     let current_yaw_radians = current_yaw_degrees * (PI / 180.0);
-                    if  input.is_key_down(winit::event::VirtualKeyCode::Right) || input.is_key_down(winit::event::VirtualKeyCode::D){
-                        player_transform.translation[0] -= player_speed * DT * f32::cos(current_yaw_radians);
-                        player_transform.translation[2] += player_speed * DT * f32::sin(current_yaw_radians);
-                    }
-                  
-                    else if input.is_key_down(winit::event::VirtualKeyCode::Left) || input.is_key_down(winit::event::VirtualKeyCode::A) {
-                        player_transform.translation[0] += player_speed * DT * f32::cos(current_yaw_radians);
-                        player_transform.translation[2] -= player_speed * DT * f32::sin(current_yaw_radians);
+                    if input.is_key_down(winit::event::VirtualKeyCode::Right)
+                        || input.is_key_down(winit::event::VirtualKeyCode::D)
+                    {
+                        player_transform.translation[0] -=
+                            player_speed * DT * f32::cos(current_yaw_radians);
+                        player_transform.translation[2] +=
+                            player_speed * DT * f32::sin(current_yaw_radians);
+                    } else if input.is_key_down(winit::event::VirtualKeyCode::Left)
+                        || input.is_key_down(winit::event::VirtualKeyCode::A)
+                    {
+                        player_transform.translation[0] +=
+                            player_speed * DT * f32::cos(current_yaw_radians);
+                        player_transform.translation[2] -=
+                            player_speed * DT * f32::sin(current_yaw_radians);
                     }
 
-                    if input.is_key_down(winit::event::VirtualKeyCode::Down) || input.is_key_down(winit::event::VirtualKeyCode::S) {
-                        player_transform.translation[0] += player_speed * DT * f32::sin(current_yaw_radians);
-                        player_transform.translation[2] -= player_speed * DT * f32::cos(current_yaw_radians);
-
-                    }
-                    else if  input.is_key_down(winit::event::VirtualKeyCode::Up) || input.is_key_down(winit::event::VirtualKeyCode::W){
-                        player_transform.translation[0] -= player_speed * DT * f32::sin(current_yaw_radians);
-                        player_transform.translation[2] += player_speed * DT * f32::cos(current_yaw_radians);
+                    if input.is_key_down(winit::event::VirtualKeyCode::Down)
+                        || input.is_key_down(winit::event::VirtualKeyCode::S)
+                    {
+                        player_transform.translation[0] +=
+                            player_speed * DT * f32::sin(current_yaw_radians);
+                        player_transform.translation[2] -=
+                            player_speed * DT * f32::cos(current_yaw_radians);
+                    } else if input.is_key_down(winit::event::VirtualKeyCode::Up)
+                        || input.is_key_down(winit::event::VirtualKeyCode::W)
+                    {
+                        player_transform.translation[0] -=
+                            player_speed * DT * f32::sin(current_yaw_radians);
+                        player_transform.translation[2] +=
+                            player_speed * DT * f32::cos(current_yaw_radians);
                     }
 
                     // shortcut for resetting camera rotation
@@ -207,15 +354,25 @@ fn main() {
                     // shortcut for resetting camera position
                     if input.is_key_down(winit::event::VirtualKeyCode::T) {
                         println!("resetting camera position...");
-                        player_transform.translation = Vec3 { x:0.0, y:0.0, z:0.0 }.into();
+                        player_transform.translation = Vec3 {
+                            x: 0.0,
+                            y: 0.0,
+                            z: 0.0,
+                        }
+                        .into();
                     }
 
-                    println!("sin: {}, cos: {}, pos x: {}, pos z: {}", f32::sin(current_yaw_radians), f32::cos(current_yaw_radians), player_transform.translation[0], player_transform.translation[2]);
+                    println!(
+                        "sin: {}, cos: {}, pos x: {}, pos z: {}",
+                        f32::sin(current_yaw_radians),
+                        f32::cos(current_yaw_radians),
+                        player_transform.translation[0],
+                        player_transform.translation[2]
+                    );
                     //println!("{}, {}", player_transform.translation[0], player_transform.translation[2]);
-
                 }
                 // Render prep
-                
+
                 // "update" updates the fpcamera's pitch and yaw, also sets fpcamera's position and rotation to the player_transform's position and rotation
                 fpcamera.update(&input, &player_transform);
                 // "update_camera" sets the actual camera's translation and rotation to fpcamera's
@@ -224,33 +381,33 @@ fn main() {
                 frend.meshes.set_camera(&frend.gpu, camera);
                 // update sprite positions and sheet regions
                 // ok now render.
-                
+
                 //frend.render();
                 // THIS LINE CAN BE REPLACED BY the following lines:
-                                 let (frame, view, mut encoder) = frend.render_setup();
-                 {
-                     // This is us manually making a renderpass
-                     let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                         label: None,
-                         color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                             view: &view,
-                             resolve_target: None,
-                             ops: frenderer::wgpu::Operations {
-                                 load: wgpu::LoadOp::Clear(BACKGROUND_COLOR),
-                                 store: true,
-                             },
-                         })],
-                         depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
-                             view: &frend.gpu.depth_texture_view,
-                             depth_ops: Some(wgpu::Operations {
-                                 load: wgpu::LoadOp::Clear(1.0),
-                                 store: true,
-                             }),
+                let (frame, view, mut encoder) = frend.render_setup();
+                {
+                    // This is us manually making a renderpass
+                    let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                        label: None,
+                        color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                            view: &view,
+                            resolve_target: None,
+                            ops: frenderer::wgpu::Operations {
+                                load: wgpu::LoadOp::Clear(BACKGROUND_COLOR),
+                                store: true,
+                            },
+                        })],
+                        depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                            view: &frend.gpu.depth_texture_view,
+                            depth_ops: Some(wgpu::Operations {
+                                load: wgpu::LoadOp::Clear(1.0),
+                                store: true,
+                            }),
                             stencil_ops: None,
-                         }),
-                     });
-                     // frend has render_into to do the actual rendering
-                     frend.render_into(&mut rpass);
+                        }),
+                    });
+                    // frend has render_into to do the actual rendering
+                    frend.render_into(&mut rpass);
                 }
                 // // This just submits the command encoder and presents the frame, we wouldn't need it if we did that some other way.
                 frend.render_finish(frame, encoder);
