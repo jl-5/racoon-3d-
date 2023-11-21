@@ -28,7 +28,7 @@ const BACKGROUND_COLOR: wgpu::Color = Color {
     a: 1.0,
 };
 
-const PLAYER_SPEED: f32 = 100.0;
+const player_speed: f32 = 100.0;
 
 /* create mesh group with multiple textures
  */
@@ -349,32 +349,32 @@ fn main() {
                         || input.is_key_down(winit::event::VirtualKeyCode::D)
                     {
                         player_transform.translation[0] -=
-                            PLAYER_SPEED * DT * f32::cos(current_yaw_radians);
+                            player_speed * DT * f32::cos(current_yaw_radians);
                         player_transform.translation[2] +=
-                            PLAYER_SPEED * DT * f32::sin(current_yaw_radians);
+                            player_speed * DT * f32::sin(current_yaw_radians);
                     } else if input.is_key_down(winit::event::VirtualKeyCode::Left)
                         || input.is_key_down(winit::event::VirtualKeyCode::A)
                     {
                         player_transform.translation[0] +=
-                            PLAYER_SPEED * DT * f32::cos(current_yaw_radians);
+                            player_speed * DT * f32::cos(current_yaw_radians);
                         player_transform.translation[2] -=
-                            PLAYER_SPEED * DT * f32::sin(current_yaw_radians);
+                            player_speed * DT * f32::sin(current_yaw_radians);
                     }
 
                     if input.is_key_down(winit::event::VirtualKeyCode::Down)
                         || input.is_key_down(winit::event::VirtualKeyCode::S)
                     {
                         player_transform.translation[0] +=
-                            PLAYER_SPEED * DT * f32::sin(current_yaw_radians);
+                            player_speed * DT * f32::sin(current_yaw_radians);
                         player_transform.translation[2] -=
-                            PLAYER_SPEED * DT * f32::cos(current_yaw_radians);
+                            player_speed * DT * f32::cos(current_yaw_radians);
                     } else if input.is_key_down(winit::event::VirtualKeyCode::Up)
                         || input.is_key_down(winit::event::VirtualKeyCode::W)
                     {
                         player_transform.translation[0] -=
-                            PLAYER_SPEED * DT * f32::sin(current_yaw_radians);
+                            player_speed * DT * f32::sin(current_yaw_radians);
                         player_transform.translation[2] +=
-                            PLAYER_SPEED * DT * f32::cos(current_yaw_radians);
+                            player_speed * DT * f32::cos(current_yaw_radians);
                     }
 
                     // shortcut for resetting camera rotation
