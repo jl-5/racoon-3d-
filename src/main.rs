@@ -6,6 +6,8 @@ use frenderer::{
     Camera3D, PollsterRuntime, Renderer, Transform3D,
 };
 use glam::*;
+use glam::Vec3;
+use ultraviolet::*;
 use rand::{rngs::ThreadRng, Rng};
 use ultraviolet::Rotor3;
 
@@ -295,6 +297,36 @@ fn main() {
                     }
                     camera.translation[2] -= 100.0 * DT;
                     */
+                    let (mx, _my): (f32, f32) = input.mouse_delta().into();
+                    let mut rot = Rotor3::from_quaternion_array(camera.rotation)
+                        * Rotor3::from_rotation_xz(mx * std::f32::consts::FRAC_PI_4 * DT);
+                    // let mut rot = Rotor3::from_quaternion_array(camera.rotation)
+                    //     * (Rotor3::from_rotation_xz(
+                    //         std::f32::consts::FRAC_PI_2
+                    //             * if input.is_key_pressed(VirtualKeyCode::R) {
+                    //                 1.0
+                    //             } else {
+                    //                 0.0
+                    //             },
+                    //     ));
+                    rot.normalize();
+                    camera.rotation = rot.into_quaternion_array();
+                    let dx = input.key_axis(winit::event::VirtualKeyCode::A, winit::event::VirtualKeyCode::D);
+                    let dz = input.key_axis(winit::event::VirtualKeyCode::W, winit::event::VirtualKeyCode::S);
+                    let mut dir = Vec3 {
+                        x: dx,
+                        y: 0.0,
+                        z: dz,
+                    };
+                    let here = if dir.mag_sq() > 0.0 {
+                        dir.normalize();
+                        Vec3::from(camera.translation) + rot.into() * dir * 200.0 * DT
+                    } else {
+                        Vec3::from(camera.translation)
+                    };
+                    dbg!(rot.into_angle_plane().0);
+                    dbg!(dir, here);
+                    camera.translation = here.into();
                     // frend.meshes.upload_meshes(&frend.gpu, fox_mesh, 0, ..);
                     //println!("tick");
                     //update_game();
@@ -304,6 +336,7 @@ fn main() {
                     // MOVEMENT!
                     // arrow key or WASD movement
                     // player_transform.translation[2] goes UP when we walk forwards (yaw = 0)
+                    /*
 
                     // TODO: make it so movement now deals with sin and cos to move in the right direction based on rotation
 
@@ -369,7 +402,7 @@ fn main() {
                         player_transform.translation[0],
                         player_transform.translation[2]
                     );
-                    //println!("{}, {}", player_transform.translation[0], player_transform.translation[2]);
+                    //println!("{}, {}", player_transform.translation[0], player_transform.translation[2]);*/
                 }
                 // Render prep
 
@@ -381,6 +414,8 @@ fn main() {
                 frend.meshes.set_camera(&frend.gpu, camera);
                 // update sprite positions and sheet regions
                 // ok now render.
+                
+                
 
                 //frend.render();
                 // THIS LINE CAN BE REPLACED BY the following lines:
