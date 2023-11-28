@@ -318,15 +318,21 @@ fn main() {
                         y: 0.0,
                         z: dz,
                     };
-                    let here = if dir.mag_sq() > 0.0 {
+                    println!("{}, {}, {}, {}", rot.into_quaternion_array()[0], rot.into_quaternion_array()[1], rot.into_quaternion_array()[2], rot.into_quaternion_array()[3],);
+                    // if x or y are not 0
+                    let here = if dir[0] != 0.0 || dir[2] != 0.0 {
                         dir.normalize();
-                        Vec3::from(camera.translation) + rot.into() * dir * 200.0 * DT
+                        // how do I multiply a quaternion by a direction? it's like multiplying a vec4 by a vec3
+                        Vec3::from(camera.translation) + rot * dir * PLAYER_SPEED * DT
                     } else {
                         Vec3::from(camera.translation)
                     };
-                    dbg!(rot.into_angle_plane().0);
-                    dbg!(dir, here);
+
+                    //dbg!(rot.into_angle_plane().0);
+                    //dbg!(dir, here);
+                    //println!("{}", here);
                     camera.translation = here.into();
+                    println!("{}, {}, {}", camera.translation[0], camera.translation[1], camera.translation[2]);
                     // frend.meshes.upload_meshes(&frend.gpu, fox_mesh, 0, ..);
                     //println!("tick");
                     //update_game();
