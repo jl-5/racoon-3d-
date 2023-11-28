@@ -173,26 +173,28 @@ fn transform_mesh(
                 scale: rng.gen_range(scale_start..scale_end),
             };
         }
-        frend.meshes.upload_meshes(&frend.gpu, mesh, 0, ..);
+        frend.meshes.upload_meshes_group(&frend.gpu, mesh);
     } else {
-        for trf in frend.flats.get_meshes_mut(mesh, 0) {
-            *trf = Transform3D {
-                translation: Vec3 {
-                    x: rng.gen_range(-400.0..400.0),
-                    y: rng.gen_range(-300.0..300.0),
-                    z: rng.gen_range(-500.0..-100.0),
-                }
-                .into(),
-                rotation: Rotor3::from_euler_angles(
-                    rng.gen_range(0.0..std::f32::consts::TAU),
-                    rng.gen_range(0.0..std::f32::consts::TAU),
-                    rng.gen_range(0.0..std::f32::consts::TAU),
-                )
-                .into_quaternion_array(),
-                scale: rng.gen_range(scale_start..scale_end),
-            };
+        for i in 0..frend.flats.mesh_count(mesh) {
+            for trf in frend.flats.get_meshes_mut(mesh, i) {
+                *trf = Transform3D {
+                    translation: Vec3 {
+                        x: rng.gen_range(-400.0..400.0),
+                        y: rng.gen_range(-300.0..300.0),
+                        z: rng.gen_range(-500.0..-100.0),
+                    }
+                    .into(),
+                    rotation: Rotor3::from_euler_angles(
+                        rng.gen_range(0.0..std::f32::consts::TAU),
+                        rng.gen_range(0.0..std::f32::consts::TAU),
+                        rng.gen_range(0.0..std::f32::consts::TAU),
+                    )
+                    .into_quaternion_array(),
+                    scale: rng.gen_range(scale_start..scale_end),
+                };
+            }
+            frend.flats.upload_meshes_group(&frend.gpu, mesh);
         }
-        frend.flats.upload_meshes(&frend.gpu, mesh, 0, ..);
     }
 }
 
