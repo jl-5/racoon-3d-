@@ -320,9 +320,8 @@ fn main() {
 
                     //println!("{}, {}, {}, {}", rot.into_quaternion_array()[0], rot.into_quaternion_array()[1], rot.into_quaternion_array()[2], rot.into_quaternion_array()[3],);
                     // if x or y are not 0
-                    let here = if dir[0] != 0.0 || dir[2] != 0.0 {
+                    let here = if dir.mag_sq() > 0.0 {
                         dir.normalize();
-                        // how do I multiply a quaternion by a direction? it's like multiplying a vec4 by a vec3
                         ultraviolet::Vec3::from(camera.translation) + rot * dir * PLAYER_SPEED * DT
                     } else {
                         ultraviolet::Vec3::from(camera.translation)
