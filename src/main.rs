@@ -81,9 +81,10 @@ fn create_mesh_flatten_multiple(
         assert!(!entry.submeshes.is_empty());
         entries.push(dbg!(entry));
     }
-    frend
+    let sprite_mesh = frend
         .flats
-        .add_mesh_group(&frend.gpu, &mats, verts, indices, entries)
+        .add_mesh_group(&frend.gpu, &mats, verts, indices, entries);
+    return sprite_mesh
 }
 
 /*
@@ -418,6 +419,7 @@ fn main() {
                 //fpcamera.update_camera(&mut camera);
                 //player_transform.rotation = fpcamera.player_rot.into();
                 frend.meshes.set_camera(&frend.gpu, camera);
+                frend.flats.set_camera(&frend.gpu, camera);
                 // update sprite positions and sheet regions
                 // ok now render.
                 
