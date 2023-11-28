@@ -412,9 +412,9 @@ fn main() {
                 // Render prep
 
                 // "update" updates the fpcamera's pitch and yaw, also sets fpcamera's position and rotation to the player_transform's position and rotation
-                fpcamera.update(&input, &player_transform);
+                //fpcamera.update(&input, &player_transform);
                 // "update_camera" sets the actual camera's translation and rotation to fpcamera's
-                fpcamera.update_camera(&mut camera);
+                //fpcamera.update_camera(&mut camera);
                 //player_transform.rotation = fpcamera.player_rot.into();
                 frend.meshes.set_camera(&frend.gpu, camera);
                 // update sprite positions and sheet regions
