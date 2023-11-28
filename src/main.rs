@@ -221,6 +221,7 @@ fn main() {
         aspect: 1024.0 / 768.0,
     };
     frend.meshes.set_camera(&frend.gpu, camera);
+    frend.flats.set_camera(&frend.gpu, camera);
 
     let mut player_transform: Transform3D = Transform3D {
         translation: (camera.translation),
