@@ -5,11 +5,11 @@ use frenderer::{
     wgpu::{self, Color},
     Camera3D, PollsterRuntime, Renderer, Transform3D,
 };
-use glam::*;
-use glam::Vec3;
-use ultraviolet::*;
+//use glam::*;
+use glam::{Vec3, Quat, EulerRot};
 use rand::{rngs::ThreadRng, Rng};
 use ultraviolet::Rotor3;
+use ultraviolet::*;
 
 use crate::camera::Camera;
 
@@ -298,6 +298,8 @@ fn main() {
                     camera.translation[2] -= 100.0 * DT;
                     */
                     let (mx, _my): (f32, f32) = input.mouse_delta().into();
+                    // need to make rot into a quaternion
+                    
                     let mut rot = Rotor3::from_quaternion_array(camera.rotation)
                         * Rotor3::from_rotation_xz(mx * std::f32::consts::FRAC_PI_4 * DT);
                     // let mut rot = Rotor3::from_quaternion_array(camera.rotation)
@@ -313,19 +315,17 @@ fn main() {
                     camera.rotation = rot.into_quaternion_array();
                     let dx = input.key_axis(winit::event::VirtualKeyCode::A, winit::event::VirtualKeyCode::D);
                     let dz = input.key_axis(winit::event::VirtualKeyCode::W, winit::event::VirtualKeyCode::S);
-                    let mut dir = Vec3 {
-                        x: dx,
-                        y: 0.0,
-                        z: dz,
-                    };
-                    println!("{}, {}, {}, {}", rot.into_quaternion_array()[0], rot.into_quaternion_array()[1], rot.into_quaternion_array()[2], rot.into_quaternion_array()[3],);
+                    let mut dir: ultraviolet::Vec3 = ultraviolet::Vec3 { x: (dx), y: (0.0), z: (dz) };
+
+
+                    //println!("{}, {}, {}, {}", rot.into_quaternion_array()[0], rot.into_quaternion_array()[1], rot.into_quaternion_array()[2], rot.into_quaternion_array()[3],);
                     // if x or y are not 0
                     let here = if dir[0] != 0.0 || dir[2] != 0.0 {
                         dir.normalize();
                         // how do I multiply a quaternion by a direction? it's like multiplying a vec4 by a vec3
-                        Vec3::from(camera.translation) + rot * dir * PLAYER_SPEED * DT
+                        ultraviolet::Vec3::from(camera.translation) + rot * dir * PLAYER_SPEED * DT
                     } else {
-                        Vec3::from(camera.translation)
+                        ultraviolet::Vec3::from(camera.translation)
                     };
 
                     //dbg!(rot.into_angle_plane().0);
