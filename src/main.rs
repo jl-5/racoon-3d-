@@ -9,9 +9,6 @@ use frenderer::{
 use glam::{Vec3, Quat, EulerRot};
 use rand::{rngs::ThreadRng, Rng};
 use ultraviolet::Rotor3;
-use ultraviolet::*;
-
-use crate::camera::Camera;
 
 // to run, do:
 // cargo run --bin test-gltf
@@ -292,13 +289,6 @@ fn main() {
         rotation: (camera.rotation),
     };
 
-    let mut fpcamera: Camera = Camera {
-        pitch: 0.0,
-        yaw: 0.0,
-        player_pos: player_transform.translation.into(),
-        player_rot: Quat::from_array(player_transform.rotation),
-    };
-
     let mut rng = rand::thread_rng();
 
     // defines meshes using create_mesh_single_texture or create_gltf_flatten_multiple
@@ -311,8 +301,19 @@ fn main() {
     transform_mesh(&mut rng, &mut frend, raccoon_mesh, true, 12.0, 20.0);
     // frend.meshes.upload_meshes_group(&frend.gpu, world_mesh);
     //transform_mesh(&mut rng, &mut frend, world_mesh, true, 50.0, 100.0);
-    spawn(&mut frend, world_mesh, true, 13.0, 0.0, 0.0, 0.0, 0.0, PI, 0.0);
- 
+    
+
+    const DO_GRAVITY: bool = true;
+    const GRAVITY_STRENGTH: f32 = 1.0;
+    let mut is_on_ground: bool = true;
+    const WORLD_HEIGHT: f32 = 0.0;
+    const PLAYER_HEIGHT: f32 = 25.0;
+    const JUMP_STRENGTH: f32 = 20.0;
+
+    spawn(&mut frend, world_mesh, true, 13.0, 0.0, WORLD_HEIGHT, 0.0, 0.0, PI, 0.0);
+
+    let mut dy = 0.0;
+
     const DT_FUDGE_AMOUNT: f32 = 0.0002;
     const DT_MAX: f32 = DT * 5.0;
     const TIME_SNAPS: [f32; 5] = [15.0, 30.0, 60.0, 120.0, 144.0];
@@ -349,43 +350,17 @@ fn main() {
                 while acc >= DT {
                     // simulate a frame
                     acc -= DT;
-                    // rotate every fox a random amount
-                    /*
-                    for trf in frend.meshes.get_meshes_mut(fox_mesh, 0) {
-                        trf.rotation = (Quat::from_array(trf.rotation)
-                            * Quat::from_euler(
-                                EulerRot::XYZ,
-                                rng.gen_range(0.0..(std::f32::consts::TAU * DT)),
-                                rng.gen_range(0.0..(std::f32::consts::TAU * DT)),
-                                rng.gen_range(0.0..(std::f32::consts::TAU * DT)),
-                           ))
-                        .into();
-                    }
-                    camera.translation[2] -= 100.0 * DT;
-                    */
                     let (mx, _my): (f32, f32) = input.mouse_delta().into();
                     // need to make rot into a quaternion
                     
                     let mut rot = Rotor3::from_quaternion_array(camera.rotation)
                         * Rotor3::from_rotation_xz(mx * std::f32::consts::FRAC_PI_4 * DT);
-                    // let mut rot = Rotor3::from_quaternion_array(camera.rotation)
-                    //     * (Rotor3::from_rotation_xz(
-                    //         std::f32::consts::FRAC_PI_2
-                    //             * if input.is_key_pressed(VirtualKeyCode::R) {
-                    //                 1.0
-                    //             } else {
-                    //                 0.0
-                    //             },
-                    //     ));
                     rot.normalize();
                     camera.rotation = rot.into_quaternion_array();
                     let dx = input.key_axis(winit::event::VirtualKeyCode::A, winit::event::VirtualKeyCode::D);
                     let dz = input.key_axis(winit::event::VirtualKeyCode::W, winit::event::VirtualKeyCode::S);
                     let mut dir: ultraviolet::Vec3 = ultraviolet::Vec3 { x: (dx), y: (0.0), z: (dz) };
 
-
-                    //println!("{}, {}, {}, {}", rot.into_quaternion_array()[0], rot.into_quaternion_array()[1], rot.into_quaternion_array()[2], rot.into_quaternion_array()[3],);
-                    // if x or y are not 0
                     let here = if dir.mag_sq() > 0.0 {
                         dir.normalize();
                         ultraviolet::Vec3::from(camera.translation) + rot * dir * PLAYER_SPEED * DT
@@ -393,104 +368,40 @@ fn main() {
                         ultraviolet::Vec3::from(camera.translation)
                     };
 
-                    //dbg!(rot.into_angle_plane().0);
-                    //dbg!(dir, here);
-                    //println!("{}", here);
                     camera.translation = here.into();
+
+                    // enforce gravity
+                    if DO_GRAVITY {
+                        if !is_on_ground {
+                            dy -= GRAVITY_STRENGTH;
+                            camera.translation[1] += dy;
+                        }
+
+                        // clamp the player's y coordinate to the world height if it falls below it
+                        if camera.translation[1] <= WORLD_HEIGHT + PLAYER_HEIGHT {
+                            camera.translation[1] = WORLD_HEIGHT + PLAYER_HEIGHT;
+                            is_on_ground = true;
+                            dy = 0.0;
+                        }
+                    }
+
+                    // jumping
+                    if input.is_key_down(input::Key::Space) && is_on_ground {
+                        is_on_ground = false;
+                        dy = JUMP_STRENGTH;
+                    }
+
                     println!("{}, {}, {}", camera.translation[0], camera.translation[1], camera.translation[2]);
-                    // frend.meshes.upload_meshes(&frend.gpu, fox_mesh, 0, ..);
-                    //println!("tick");
-                    //update_game();
-                    // camera.screen_pos[0] += 0.01;
+            
                     input.next_frame();
 
-                    // MOVEMENT!
-                    // arrow key or WASD movement
-                    // player_transform.translation[2] goes UP when we walk forwards (yaw = 0)
-                    /*
-
-                    // TODO: make it so movement now deals with sin and cos to move in the right direction based on rotation
-
-                    let mut current_yaw_degrees = fpcamera.yaw * 180.0 / PI;
-                    if current_yaw_degrees < 0.0 {
-                        current_yaw_degrees += 360.0;
-                    }
-                    let current_yaw_radians = current_yaw_degrees * (PI / 180.0);
-                    if input.is_key_down(winit::event::VirtualKeyCode::Right)
-                        || input.is_key_down(winit::event::VirtualKeyCode::D)
-                    {
-                        player_transform.translation[0] -=
-                            PLAYER_SPEED * DT * f32::cos(current_yaw_radians);
-                        player_transform.translation[2] +=
-                            PLAYER_SPEED * DT * f32::sin(current_yaw_radians);
-                    } else if input.is_key_down(winit::event::VirtualKeyCode::Left)
-                        || input.is_key_down(winit::event::VirtualKeyCode::A)
-                    {
-                        player_transform.translation[0] +=
-                            PLAYER_SPEED * DT * f32::cos(current_yaw_radians);
-                        player_transform.translation[2] -=
-                            PLAYER_SPEED * DT * f32::sin(current_yaw_radians);
-                    }
-
-                    if input.is_key_down(winit::event::VirtualKeyCode::Down)
-                        || input.is_key_down(winit::event::VirtualKeyCode::S)
-                    {
-                        player_transform.translation[0] +=
-                            PLAYER_SPEED * DT * f32::sin(current_yaw_radians);
-                        player_transform.translation[2] -=
-                            PLAYER_SPEED * DT * f32::cos(current_yaw_radians);
-                    } else if input.is_key_down(winit::event::VirtualKeyCode::Up)
-                        || input.is_key_down(winit::event::VirtualKeyCode::W)
-                    {
-                        player_transform.translation[0] -=
-                            PLAYER_SPEED * DT * f32::sin(current_yaw_radians);
-                        player_transform.translation[2] +=
-                            PLAYER_SPEED * DT * f32::cos(current_yaw_radians);
-                    }
-
-                    // shortcut for resetting camera rotation
-                    if input.is_key_down(winit::event::VirtualKeyCode::R) {
-                        println!("resetting camera rotation...");
-                        fpcamera.pitch = 0.0;
-                        fpcamera.yaw = 0.0;
-                    }
-
-                    // shortcut for resetting camera position
-                    if input.is_key_down(winit::event::VirtualKeyCode::T) {
-                        println!("resetting camera position...");
-                        player_transform.translation = Vec3 {
-                            x: 0.0,
-                            y: 0.0,
-                            z: 0.0,
-                        }
-                        .into();
-                    }
-
-                    println!(
-                        "sin: {}, cos: {}, pos x: {}, pos z: {}",
-                        f32::sin(current_yaw_radians),
-                        f32::cos(current_yaw_radians),
-                        player_transform.translation[0],
-                        player_transform.translation[2]
-                    );
-                    //println!("{}, {}", player_transform.translation[0], player_transform.translation[2]);*/
                 }
                 // Render prep
-
-                // "update" updates the fpcamera's pitch and yaw, also sets fpcamera's position and rotation to the player_transform's position and rotation
-                //fpcamera.update(&input, &player_transform);
-                // "update_camera" sets the actual camera's translation and rotation to fpcamera's
-                //fpcamera.update_camera(&mut camera);
-                //player_transform.rotation = fpcamera.player_rot.into();
                 frend.meshes.set_camera(&frend.gpu, camera);
                 frend.flats.set_camera(&frend.gpu, camera);
                 // update sprite positions and sheet regions
-                // ok now render.
-                
-                
-
                 //frend.render();
-                // THIS LINE CAN BE REPLACED BY the following lines:
+                // THIS LINE ^ CAN BE REPLACED BY the following lines:
                 let (frame, view, mut encoder) = frend.render_setup();
                 {
                     // This is us manually making a renderpass
