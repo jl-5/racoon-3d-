@@ -198,6 +198,66 @@ fn transform_mesh(
     }
 }
 
+/* spawns a mesh at a given point
+@params:
+- flat (bool): flattened mesh or not (i.e. MeshGroup was created from create_mesh_flatten_multiple)
+*/
+fn spawn(
+    frend: &mut Renderer<PollsterRuntime>,
+    mesh: MeshGroup,
+    flat: bool,
+    scale: f32,
+    x: f32,
+    y: f32,
+    z: f32,
+    angle_a: f32,
+    angle_b: f32,
+    angle_c: f32
+) {
+    if !flat {
+        for trf in frend.meshes.get_meshes_mut(mesh, 0) {
+            *trf = Transform3D {
+                translation: Vec3 {
+                    x: x,
+                    y: y,
+                    z: z,
+                }
+                .into(),
+                rotation: Quat::from_euler(
+                    EulerRot::XYZ,
+                    angle_a,
+                    angle_b,
+                    angle_c,
+                )
+                .into(),
+                scale: scale,
+            };
+        }
+        frend.meshes.upload_meshes_group(&frend.gpu, mesh);
+    } else {
+        for i in 0..frend.flats.mesh_count(mesh) {
+            for trf in frend.flats.get_meshes_mut(mesh, i) {
+                *trf = Transform3D {
+                    translation: Vec3 {
+                        x: x,
+                        y: y,
+                        z: z,
+                    }
+                    .into(),
+                    rotation: Rotor3::from_euler_angles(
+                        angle_a,
+                        angle_b,
+                        angle_c,
+                    )
+                    .into_quaternion_array(),
+                    scale: scale
+                };
+            }
+            frend.flats.upload_meshes_group(&frend.gpu, mesh);
+        }
+    }
+}
+
 fn main() {
     let event_loop = winit::event_loop::EventLoop::new();
     let window = winit::window::Window::new(&event_loop).unwrap();
@@ -212,7 +272,7 @@ fn main() {
     let mut camera = Camera3D {
         translation: Vec3 {
             x: 0.0,
-            y: 0.0,
+            y: 25.0,
             z: -100.0,
         }
         .into(),
@@ -244,13 +304,14 @@ fn main() {
     // defines meshes using create_mesh_single_texture or create_gltf_flatten_multiple
     let fox_mesh = create_mesh_single_texture(&cache, &mut frend, "Fox");
     let raccoon_mesh = create_mesh_flatten_multiple(&cache, &mut frend, "scene", 10);
-    let world_mesh = create_mesh_flatten_multiple(&cache, &mut frend, "GraceLiTrial", 10);
+    let world_mesh = create_mesh_flatten_multiple(&cache, &mut frend, "GraceLiTrial", 1);
 
     // apply transformations
     transform_mesh(&mut rng, &mut frend, fox_mesh, false, 0.5, 1.0);
     transform_mesh(&mut rng, &mut frend, raccoon_mesh, true, 12.0, 20.0);
     // frend.meshes.upload_meshes_group(&frend.gpu, world_mesh);
-    transform_mesh(&mut rng, &mut frend, world_mesh, true, 50.0, 100.0);
+    //transform_mesh(&mut rng, &mut frend, world_mesh, true, 50.0, 100.0);
+    spawn(&mut frend, world_mesh, true, 13.0, 0.0, 0.0, 0.0, 0.0, PI, 0.0);
  
     const DT_FUDGE_AMOUNT: f32 = 0.0002;
     const DT_MAX: f32 = DT * 5.0;
