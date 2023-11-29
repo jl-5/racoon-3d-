@@ -244,13 +244,14 @@ fn main() {
     // defines meshes using create_mesh_single_texture or create_gltf_flatten_multiple
     let fox_mesh = create_mesh_single_texture(&cache, &mut frend, "Fox");
     let raccoon_mesh = create_mesh_flatten_multiple(&cache, &mut frend, "scene", 10);
-    let world_mesh = create_mesh_flatten_multiple(&cache, &mut frend, "raccoon", 10);
+    let world_mesh = create_mesh_flatten_multiple(&cache, &mut frend, "GraceLiTrial", 10);
 
     // apply transformations
     transform_mesh(&mut rng, &mut frend, fox_mesh, false, 0.5, 1.0);
     transform_mesh(&mut rng, &mut frend, raccoon_mesh, true, 12.0, 20.0);
+    // frend.meshes.upload_meshes_group(&frend.gpu, world_mesh);
     transform_mesh(&mut rng, &mut frend, world_mesh, true, 50.0, 100.0);
-
+ 
     const DT_FUDGE_AMOUNT: f32 = 0.0002;
     const DT_MAX: f32 = DT * 5.0;
     const TIME_SNAPS: [f32; 5] = [15.0, 30.0, 60.0, 120.0, 144.0];
