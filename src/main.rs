@@ -6,16 +6,17 @@ use frenderer::{
     Camera3D, PollsterRuntime, Renderer, Transform3D,
 };
 //use glam::*;
-use glam::{Vec3, Quat, EulerRot};
-use rand::{rngs::ThreadRng, Rng};
+use glam::{Vec3, Quat, EulerRot, vec3};
+use rand::{rngs::ThreadRng, Rng, seq::{SliceRandom, IteratorRandom}};
 use ultraviolet::Rotor3;
+use winit::event::MouseButton;
 
 // to run, do:
 // cargo run --bin test-gltf
 
 mod camera;
 
-use std::f32::consts::PI;
+use std::{f32::consts::PI};
 
 const DT: f32 = 1.0 / 60.0;
 const BACKGROUND_COLOR: wgpu::Color = Color {
@@ -195,6 +196,13 @@ fn transform_mesh(
     }
 }
 
+fn update_transform(frend: &mut Renderer<PollsterRuntime>,
+    mesh: MeshGroup,
+    flat: bool,
+    transform: Transform3D) {
+
+    }
+
 /* spawns a mesh at a given point
 @params:
 - flat (bool): flattened mesh or not (i.e. MeshGroup was created from create_mesh_flatten_multiple)
@@ -297,20 +305,29 @@ fn main() {
     let world_mesh = create_mesh_flatten_multiple(&cache, &mut frend, "GraceLiTrial", 1);
 
     // apply transformations
-    transform_mesh(&mut rng, &mut frend, fox_mesh, false, 0.5, 1.0);
-    transform_mesh(&mut rng, &mut frend, raccoon_mesh, true, 12.0, 20.0);
+    //transform_mesh(&mut rng, &mut frend, fox_mesh, false, 0.5, 1.0);
+    //transform_mesh(&mut rng, &mut frend, raccoon_mesh, true, 12.0, 20.0);
     // frend.meshes.upload_meshes_group(&frend.gpu, world_mesh);
     //transform_mesh(&mut rng, &mut frend, world_mesh, true, 50.0, 100.0);
-    
+
+
+    // GAME LOGIC AND OBJECT SPAWNING GOES HERE:
 
     const DO_GRAVITY: bool = true;
-    const GRAVITY_STRENGTH: f32 = 1.0;
+    const GRAVITY_STRENGTH: f32 = 0.1;
     let mut is_on_ground: bool = true;
     const WORLD_HEIGHT: f32 = 0.0;
     const PLAYER_HEIGHT: f32 = 25.0;
-    const JUMP_STRENGTH: f32 = 20.0;
+    const JUMP_STRENGTH: f32 = 3.0;
+
+    let hiding_positions:Vec<Vec3> = vec![vec3(0.0, 25.0, 0.0), vec3(10.0, 25.0, 0.0), vec3(20.0, 25.0, 0.0)];
+
+    let current_raccoon_position: Vec3 = hiding_positions[rng.gen_range(0..hiding_positions.len())];
+
+    frend.flats.get_meshes_mut(raccoon_mesh, 0);
 
     spawn(&mut frend, world_mesh, true, 13.0, 0.0, WORLD_HEIGHT, 0.0, 0.0, PI, 0.0);
+    spawn(&mut frend, raccoon_mesh, true, 10.0, current_raccoon_position.x, current_raccoon_position.y, current_raccoon_position.z, 0.0, PI, 0.0);
 
     let mut dy = 0.0;
 
@@ -391,7 +408,24 @@ fn main() {
                         dy = JUMP_STRENGTH;
                     }
 
-                    println!("{}, {}, {}", camera.translation[0], camera.translation[1], camera.translation[2]);
+                    // catching the raccoon!
+                    if input.is_mouse_down(MouseButton::Left) {
+                        use ndarray::{array, Array1, ArrayView1};
+                        // if distance from raccoon < WINNING_DISTANCE:
+                            // respawn raccoon
+                        pub fn elementwise_subtraction(vec_a: Vec<f32>, vec_b: Vec<f32>) -> Vec<f32> {
+                            vec_a.into_iter().zip(vec_b).map(|(a, b)| a - b).collect()
+                        }
+                        let v = elementwise_subtraction(camera.translation.to_vec(), [current_raccoon_position.x, current_raccoon_position.y, current_raccoon_position.z].to_vec());
+                        let distance = ultraviolet::Vec3::dot(&ultraviolet::Vec3{x: v[0], y: v[1], z: v[2]}, ultraviolet::Vec3{x: v[0], y: v[1], z: v[2]}).sqrt();
+                        //println!("{}", distance);
+                        if distance < 40.0 {
+                            println!("You win!"); 
+                        }
+                        
+                    }
+
+                    //println!("{}, {}, {}", camera.translation[0], camera.translation[1], camera.translation[2]);
             
                     input.next_frame();
 
