@@ -325,7 +325,7 @@ fn main() {
     const PLAYER_HEIGHT: f32 = 25.0;
     const JUMP_STRENGTH: f32 = 3.0;
 
-    let hiding_positions:Vec<Vec3> = vec![vec3(90.0, 25.0, 78.0), vec3(74.0, 25.0, 236.0), vec3(-196.0, 25.0, -13.0)];
+    let hiding_positions:Vec<Vec3> = vec![vec3(131.0, 25.0, -11.0), vec3(-893.0, 25.0, -853.0), vec3(-270.0, 25.0, 534.0), vec3(605.0, 25.0, -327.0), vec3(300.0, 25.0, -508.0), vec3(-716.0, 25.0, 53.0), vec3(835.0, 25.0, 419.0), vec3(-457.0, 25.0, 196.0), vec3(606.0, 25.0, 0.0)];
 
     let mut current_raccoon_position: Vec3 = hiding_positions[rng.gen_range(0..hiding_positions.len())];
 
