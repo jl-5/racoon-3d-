@@ -200,13 +200,6 @@ fn transform_mesh(
     }
 }
 
-fn update_transform(frend: &mut Renderer<PollsterRuntime>,
-    mesh: MeshGroup,
-    flat: bool,
-    transform: Transform3D) {
-
-    }
-
 /* spawns a mesh at a given point
 @params:
 - flat (bool): flattened mesh or not (i.e. MeshGroup was created from create_mesh_flatten_multiple)
@@ -378,6 +371,7 @@ fn main() {
                     let mut rot = Rotor3::from_quaternion_array(camera.rotation)
                         * Rotor3::from_rotation_xz(mx * std::f32::consts::FRAC_PI_4 * DT);
                     rot.normalize();
+
                     camera.rotation = rot.into_quaternion_array();
                     let dx = input.key_axis(winit::event::VirtualKeyCode::A, winit::event::VirtualKeyCode::D);
                     let dz = input.key_axis(winit::event::VirtualKeyCode::W, winit::event::VirtualKeyCode::S);
@@ -415,7 +409,6 @@ fn main() {
 
                     // catching the raccoon!
                     if input.is_mouse_down(MouseButton::Left) {
-                        use ndarray::{array, Array1, ArrayView1};
                         // if distance from raccoon < WINNING_DISTANCE:
                             // respawn raccoon
                         pub fn elementwise_subtraction(vec_a: Vec<f32>, vec_b: Vec<f32>) -> Vec<f32> {
