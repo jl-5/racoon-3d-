@@ -306,7 +306,7 @@ fn main() {
     // defines meshes using create_mesh_single_texture or create_gltf_flatten_multiple
     let fox_mesh = create_mesh_single_texture(&cache, &mut frend, "Fox");
     let raccoon_mesh = create_mesh_flatten_multiple(&cache, &mut frend, "scene", 10);
-    let world_mesh = create_mesh_flatten_multiple(&cache, &mut frend, "GraceLiTrial", 1);
+    let world_mesh = create_mesh_flatten_multiple(&cache, &mut frend, "v2", 1);
 
     // apply transformations
     //transform_mesh(&mut rng, &mut frend, fox_mesh, false, 0.5, 1.0);
