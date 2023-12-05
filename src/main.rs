@@ -277,8 +277,8 @@ fn main() {
         0.0,
     );
 
-    let platform_positions = vec![ultraviolet::vec::Vec3{x:0.0, y:0.0, z:0.0}, ultraviolet::vec::Vec3{x:20.0, y:20.0, z:20.0}, ultraviolet::vec::Vec3{x:40.0, y:40.0, z:40.0}, ultraviolet::vec::Vec3{x:10.0, y:70.0, z:40.0}, ultraviolet::vec::Vec3{x:50.0, y:90.0, z:35.0}];
-    let mut index = 0;
+        let platform_positions = vec![ultraviolet::vec::Vec3{x:0.0, y:0.0, z:0.0}, ultraviolet::vec::Vec3{x:20.0, y:20.0, z:20.0}, ultraviolet::vec::Vec3{x:40.0, y:40.0, z:40.0}, ultraviolet::vec::Vec3{x:10.0, y:70.0, z:40.0}, ultraviolet::vec::Vec3{x:50.0, y:90.0, z:35.0}, ultraviolet::vec::Vec3{x:90.0, y:120.0, z:35.0}, ultraviolet::vec::Vec3{x:80.0, y:120.0, z:80.0}];
+let mut index = 0;
     for platform in platform_positions {
         //println!("{}",platform);
         spawn(
@@ -301,10 +301,10 @@ fn main() {
     let mut is_on_surface = false;
 
     pub fn is_on_platform(player_position: Vec3) -> bool {
-        let platform_positions = vec![ultraviolet::vec::Vec3{x:0.0, y:0.0, z:0.0}, ultraviolet::vec::Vec3{x:20.0, y:20.0, z:20.0}, ultraviolet::vec::Vec3{x:40.0, y:40.0, z:40.0}, ultraviolet::vec::Vec3{x:10.0, y:70.0, z:40.0}, ultraviolet::vec::Vec3{x:50.0, y:90.0, z:35.0}];
+        let platform_positions = vec![ultraviolet::vec::Vec3{x:0.0, y:0.0, z:0.0}, ultraviolet::vec::Vec3{x:20.0, y:20.0, z:20.0}, ultraviolet::vec::Vec3{x:40.0, y:40.0, z:40.0}, ultraviolet::vec::Vec3{x:10.0, y:70.0, z:40.0}, ultraviolet::vec::Vec3{x:50.0, y:90.0, z:35.0}, ultraviolet::vec::Vec3{x:90.0, y:120.0, z:35.0}, ultraviolet::vec::Vec3{x:80.0, y:120.0, z:80.0}];
 
         for platform in platform_positions{
-            if platform.x > player_position.x - 10.0 && platform.x < player_position.x + 10.0 && platform.z > player_position.z - 10.0 && platform.z < player_position.z + 10.0 && platform.y > player_position.y - 10.0 && platform.y < player_position.y {
+            if platform.x > player_position.x - 10.0 && platform.x < player_position.x + 10.0 && platform.z > player_position.z - 10.0 && platform.z < player_position.z + 10.0 && platform.y > player_position.y - 20.0 && platform.y < player_position.y {
                 return true;
             }
         }
@@ -387,6 +387,9 @@ fn main() {
 
                         if is_on_platform( camera.translation.into()) {
                             is_on_surface = true;
+                        }
+                        if dir.mag_sq() > 0.0 && is_on_surface {
+                            is_on_surface = is_on_platform(camera.translation.into());
                         }
 
                         // if the player falls below the world, go back to the first platform
