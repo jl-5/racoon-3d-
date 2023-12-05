@@ -542,6 +542,7 @@ fn main() {
 
                         // if the player falls below the world, go back to the first platform
                         if camera.translation[1] <= WORLD_HEIGHT + PLAYER_HEIGHT {
+                            is_game_won = false;
                             camera.translation = vec3(0.0, 20.0, 0.0).into();
                             dy = 0.0;
                         }
