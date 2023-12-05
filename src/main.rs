@@ -5,6 +5,10 @@ use frenderer::{
     wgpu::{self, Color},
     Camera3D, PollsterRuntime, Renderer, Transform3D,
 };
+use kira::{
+    manager::{backend::DefaultBackend, AudioManager, AudioManagerSettings},
+    sound::static_sound::{StaticSoundData, StaticSoundSettings},
+};
 //use glam::*;
 use glam::{vec3, EulerRot, Quat, Vec3};
 use rand::{
@@ -204,6 +208,8 @@ fn main() {
     let cache = assets_manager::AssetCache::with_source(source);
     let mut frend = frenderer::with_default_runtime(&window);
     let mut input = input::Input::default();
+    let mut sound_manager =
+        AudioManager::<DefaultBackend>::new(AudioManagerSettings::default()).unwrap();
 
     let mut camera = Camera3D {
         translation: Vec3 {
@@ -255,36 +261,9 @@ fn main() {
 
     // spawn a world below us just so we can see what we're doing
     spawn(
-        &mut frend,
-        camera,
-        world_mesh,
-        true,
-        0,
-        1.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        PI,
-        0.0,
+        &mut frend, camera, world_mesh, true, 0, 1.0, 0.0, 0.0, 0.0, 0.0, PI, 0.0,
     );
 
-    // spawn the flag
-    /*
-    spawn(
-        &mut frend,
-        camera,
-        flag_mesh,
-        false,
-        0,
-        50.0,
-        -130.0,
-        170.0,
-        -120.0,
-        0.0,
-        PI,
-        0.0,
-    ); */
     spawn(
         &mut frend,
         camera,
@@ -295,14 +274,84 @@ fn main() {
         -100.0,
         -50.0,
         -225.0,
-        3.0*(PI/2.0),
+        3.0 * (PI / 2.0),
         0.0,
         0.0,
     );
 
-
-        let platform_positions = vec![ultraviolet::vec::Vec3{x:0.0, y:0.0, z:0.0}, ultraviolet::vec::Vec3{x:20.0, y:20.0, z:20.0}, ultraviolet::vec::Vec3{x:40.0, y:40.0, z:40.0}, ultraviolet::vec::Vec3{x:10.0, y:70.0, z:40.0}, ultraviolet::vec::Vec3{x:50.0, y:90.0, z:35.0}, ultraviolet::vec::Vec3{x:90.0, y:120.0, z:35.0}, ultraviolet::vec::Vec3{x:80.0, y:120.0, z:80.0}, ultraviolet::vec::Vec3{x:60.0, y:150.0, z:50.0}, ultraviolet::vec::Vec3{x:30.0, y:170.0, z:30.0}, ultraviolet::vec::Vec3{x:0.0, y:160.0, z:0.0}, ultraviolet::vec::Vec3{x:-50.0, y:160.0, z:-50.0}, ultraviolet::vec::Vec3{x:-100.0, y:160.0, z:-75.0}, ultraviolet::vec::Vec3{x:-120.0, y:180.0, z:-50.0}, ultraviolet::vec::Vec3{x:-110.0, y:210.0, z:-100.0}];
-        let mut index = 0;
+    let platform_positions = vec![
+        ultraviolet::vec::Vec3 {
+            x: 0.0,
+            y: 0.0,
+            z: 0.0,
+        },
+        ultraviolet::vec::Vec3 {
+            x: 20.0,
+            y: 20.0,
+            z: 20.0,
+        },
+        ultraviolet::vec::Vec3 {
+            x: 40.0,
+            y: 40.0,
+            z: 40.0,
+        },
+        ultraviolet::vec::Vec3 {
+            x: 10.0,
+            y: 70.0,
+            z: 40.0,
+        },
+        ultraviolet::vec::Vec3 {
+            x: 50.0,
+            y: 90.0,
+            z: 35.0,
+        },
+        ultraviolet::vec::Vec3 {
+            x: 90.0,
+            y: 120.0,
+            z: 35.0,
+        },
+        ultraviolet::vec::Vec3 {
+            x: 80.0,
+            y: 120.0,
+            z: 80.0,
+        },
+        ultraviolet::vec::Vec3 {
+            x: 60.0,
+            y: 150.0,
+            z: 50.0,
+        },
+        ultraviolet::vec::Vec3 {
+            x: 30.0,
+            y: 170.0,
+            z: 30.0,
+        },
+        ultraviolet::vec::Vec3 {
+            x: 0.0,
+            y: 160.0,
+            z: 0.0,
+        },
+        ultraviolet::vec::Vec3 {
+            x: -50.0,
+            y: 160.0,
+            z: -50.0,
+        },
+        ultraviolet::vec::Vec3 {
+            x: -100.0,
+            y: 160.0,
+            z: -75.0,
+        },
+        ultraviolet::vec::Vec3 {
+            x: -120.0,
+            y: 180.0,
+            z: -50.0,
+        },
+        ultraviolet::vec::Vec3 {
+            x: -110.0,
+            y: 210.0,
+            z: -100.0,
+        },
+    ];
+    let mut index = 0;
     for platform in platform_positions {
         //println!("{}",platform);
         spawn(
@@ -325,14 +374,90 @@ fn main() {
     let mut is_on_surface = false;
 
     pub fn is_on_platform(player_position: Vec3) -> bool {
-        let platform_positions = vec![ultraviolet::vec::Vec3{x:0.0, y:0.0, z:0.0}, ultraviolet::vec::Vec3{x:20.0, y:20.0, z:20.0}, ultraviolet::vec::Vec3{x:40.0, y:40.0, z:40.0}, ultraviolet::vec::Vec3{x:10.0, y:70.0, z:40.0}, ultraviolet::vec::Vec3{x:50.0, y:90.0, z:35.0}, ultraviolet::vec::Vec3{x:90.0, y:120.0, z:35.0}, ultraviolet::vec::Vec3{x:80.0, y:120.0, z:80.0}, ultraviolet::vec::Vec3{x:60.0, y:150.0, z:50.0}, ultraviolet::vec::Vec3{x:30.0, y:170.0, z:30.0}, ultraviolet::vec::Vec3{x:0.0, y:160.0, z:0.0}, ultraviolet::vec::Vec3{x:-50.0, y:160.0, z:-50.0}, ultraviolet::vec::Vec3{x:-100.0, y:160.0, z:-75.0}, ultraviolet::vec::Vec3{x:-120.0, y:180.0, z:-50.0}, ultraviolet::vec::Vec3{x:-110.0, y:210.0, z:-100.0}];
-        for platform in platform_positions{
-            if platform.x > player_position.x - 15.0 && platform.x < player_position.x + 15.0 && platform.z > player_position.z - 15.0 && platform.z < player_position.z + 15.0 && platform.y > player_position.y - 20.0 && platform.y < player_position.y {
+        let platform_positions = vec![
+            ultraviolet::vec::Vec3 {
+                x: 0.0,
+                y: 0.0,
+                z: 0.0,
+            },
+            ultraviolet::vec::Vec3 {
+                x: 20.0,
+                y: 20.0,
+                z: 20.0,
+            },
+            ultraviolet::vec::Vec3 {
+                x: 40.0,
+                y: 40.0,
+                z: 40.0,
+            },
+            ultraviolet::vec::Vec3 {
+                x: 10.0,
+                y: 70.0,
+                z: 40.0,
+            },
+            ultraviolet::vec::Vec3 {
+                x: 50.0,
+                y: 90.0,
+                z: 35.0,
+            },
+            ultraviolet::vec::Vec3 {
+                x: 90.0,
+                y: 120.0,
+                z: 35.0,
+            },
+            ultraviolet::vec::Vec3 {
+                x: 80.0,
+                y: 120.0,
+                z: 80.0,
+            },
+            ultraviolet::vec::Vec3 {
+                x: 60.0,
+                y: 150.0,
+                z: 50.0,
+            },
+            ultraviolet::vec::Vec3 {
+                x: 30.0,
+                y: 170.0,
+                z: 30.0,
+            },
+            ultraviolet::vec::Vec3 {
+                x: 0.0,
+                y: 160.0,
+                z: 0.0,
+            },
+            ultraviolet::vec::Vec3 {
+                x: -50.0,
+                y: 160.0,
+                z: -50.0,
+            },
+            ultraviolet::vec::Vec3 {
+                x: -100.0,
+                y: 160.0,
+                z: -75.0,
+            },
+            ultraviolet::vec::Vec3 {
+                x: -120.0,
+                y: 180.0,
+                z: -50.0,
+            },
+            ultraviolet::vec::Vec3 {
+                x: -110.0,
+                y: 210.0,
+                z: -100.0,
+            },
+        ];
+        for platform in platform_positions {
+            if platform.x > player_position.x - 15.0
+                && platform.x < player_position.x + 15.0
+                && platform.z > player_position.z - 15.0
+                && platform.z < player_position.z + 15.0
+                && platform.y > player_position.y - 20.0
+                && platform.y < player_position.y
+            {
                 return true;
             }
         }
         return false;
-
     }
 
     const DT_FUDGE_AMOUNT: f32 = 0.0002;
@@ -408,7 +533,7 @@ fn main() {
                             camera.translation[1] += dy;
                         }
 
-                        if is_on_platform( camera.translation.into()) {
+                        if is_on_platform(camera.translation.into()) {
                             is_on_surface = true;
                         }
                         if dir.mag_sq() > 0.0 && is_on_surface {
@@ -426,74 +551,26 @@ fn main() {
                     if input.is_key_down(input::Key::Space) && is_on_surface {
                         dy = JUMP_STRENGTH;
                         is_on_surface = false;
-                        
+                        let sound_data = StaticSoundData::from_file(
+                            "content/jump.ogg",
+                            StaticSoundSettings::default(),
+                        )
+                        .unwrap();
+
+                        let _ = sound_manager.play(sound_data);
                     }
 
                     if is_game_won == false && camera.translation[2] < -200.0 {
+                        let sound_data = StaticSoundData::from_file(
+                            "/content/win.ogg",
+                            StaticSoundSettings::default(),
+                        )
+                        .unwrap();
+
+                        let _ = sound_manager.play(sound_data);
                         is_game_won = true;
                         println!("You win! You are incredible at shitty 3D platformers.");
                     }
-
-                    /* 
-                    // catching the raccoon!
-                    if input.is_mouse_down(MouseButton::Left) {
-                        use ndarray::{array, Array1, ArrayView1};
-                        // if distance from raccoon < WINNING_DISTANCE:
-                        // respawn raccoon
-                        pub fn elementwise_subtraction(
-                            vec_a: Vec<f32>,
-                            vec_b: Vec<f32>,
-                        ) -> Vec<f32> {
-                            vec_a.into_iter().zip(vec_b).map(|(a, b)| a - b).collect()
-                        }
-                        let v = elementwise_subtraction(
-                            camera.translation.to_vec(),
-                            [
-                                current_raccoon_position.x,
-                                current_raccoon_position.y,
-                                current_raccoon_position.z,
-                            ]
-                            .to_vec(),
-                        );
-                        let distance = ultraviolet::Vec3::dot(
-                            &ultraviolet::Vec3 {
-                                x: v[0],
-                                y: v[1],
-                                z: v[2],
-                            },
-                            ultraviolet::Vec3 {
-                                x: v[0],
-                                y: v[1],
-                                z: v[2],
-                            },
-                        )
-                        .sqrt();
-                        //println!("{}", distance);
-                        if distance < 40.0 {
-                            println!("You found me! Can you do it again!");
-                            is_game_won = true;
-                            current_raccoon_position =
-                                hiding_positions[rng.gen_range(0..hiding_positions.len())];
-                            spawn(
-                                &mut frend,
-                                camera,
-                                raccoon_mesh,
-                                true,
-                                0,
-                                5.0,
-                                current_raccoon_position.x,
-                                current_raccoon_position.y,
-                                current_raccoon_position.z,
-                                rng.gen_range(0.0..TAU),
-                                PI,
-                                0.0,
-                            )
-                        }
-                    }
-                    */
-                    
-                    // PRINT POSITION
-                    //println!("{}, {}, {}", camera.translation[0], camera.translation[1], camera.translation[2]);
 
                     input.next_frame();
                 }
