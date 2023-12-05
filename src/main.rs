@@ -231,7 +231,7 @@ fn main() {
     let mut rng = rand::thread_rng();
 
     // create instance_count of specified mesh
-    let raccoon_mesh = create_mesh_flatten_multiple(&cache, &mut frend, "scene", 2);
+    let raccoon_mesh = create_mesh_flatten_multiple(&cache, &mut frend, "scene", 99);
     // let world_mesh = create_mesh_flatten_multiple(&cache, &mut frend, "GraceLiTrial", 1);
 
     // GAME LOGIC AND OBJECT SPAWNING GOES HERE:
@@ -261,6 +261,27 @@ fn main() {
     let mut current_raccoon_position: Vec3 =
         hiding_positions[rng.gen_range(0..hiding_positions.len())];
 
+    let platform_positions = vec![vec3(0.0, 0.0, 0.0), vec3(10.0, 10.0, 10.0), vec3(20.0, 20.0, 20.0)];
+    let mut index = 0;
+    for platform in platform_positions {
+        println!("{}",platform);
+        spawn(
+            &mut frend,
+            camera,
+            raccoon_mesh,
+            true,
+            index,
+            5.0,
+            platform.x,
+            platform.y,
+            platform.z,
+            0.0,
+            PI,
+            0.0,
+        );
+        index += 1;
+    }
+
     // place in world
     /*spawn(
         &mut frend,
@@ -273,7 +294,7 @@ fn main() {
         0.0,
         PI,
         0.0,
-    ); */
+    ); 
 
     spawn(
         &mut frend,
@@ -304,6 +325,7 @@ fn main() {
         PI,
         0.0,
     );
+    */
 
     let mut dy = 0.0;
 
