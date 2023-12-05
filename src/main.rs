@@ -13,7 +13,7 @@ use rand::{
     Rng,
 };
 use ultraviolet::{transform, Rotor3};
-use winit::event::MouseButton;
+use winit::{event::MouseButton, platform};
 
 // to run, do:
 // cargo run --bin test-gltf
@@ -178,14 +178,14 @@ fn spawn(
         // retrieve specified Transform3D (which represents the indexth instance of mesh)
         let transform = &mut frend.flats.get_meshes_mut(mesh, 0)[index];
 
-        println!("{:?}", transform);
+        //println!("{:?}", transform);
 
         transform.translation = Vec3 { x: x, y: y, z: z }.into();
         transform.rotation =
             Rotor3::from_euler_angles(angle_a, angle_b, angle_c).into_quaternion_array();
         transform.scale = scale;
 
-        println!("{:?}", transform);
+        //println!("{:?}", transform);
 
         frend.flats.upload_meshes(&frend.gpu, mesh, 0, ..);
     }
@@ -232,7 +232,7 @@ fn main() {
 
     // create instance_count of specified mesh
     let raccoon_mesh = create_mesh_flatten_multiple(&cache, &mut frend, "scene", 99);
-    // let world_mesh = create_mesh_flatten_multiple(&cache, &mut frend, "GraceLiTrial", 1);
+    let world_mesh = create_mesh_flatten_multiple(&cache, &mut frend, "GraceLiTrial", 1);
 
     // GAME LOGIC AND OBJECT SPAWNING GOES HERE:
 
@@ -240,7 +240,7 @@ fn main() {
     const DO_GRAVITY: bool = true;
     const GRAVITY_STRENGTH: f32 = 0.1;
     let mut is_on_ground: bool = true;
-    const WORLD_HEIGHT: f32 = 0.0;
+    const WORLD_HEIGHT: f32 = -100.0;
     const PLAYER_HEIGHT: f32 = 25.0;
     const JUMP_STRENGTH: f32 = 3.0;
 
@@ -261,10 +261,26 @@ fn main() {
     let mut current_raccoon_position: Vec3 =
         hiding_positions[rng.gen_range(0..hiding_positions.len())];
 
-    let platform_positions = vec![vec3(0.0, 0.0, 0.0), vec3(10.0, 10.0, 10.0), vec3(20.0, 20.0, 20.0)];
+    // spawn a world below us just so we can see what we're doing
+    spawn(
+        &mut frend,
+        camera,
+        world_mesh,
+        true,
+        0,
+        5.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        PI,
+        0.0,
+    );
+
+    let platform_positions = vec![ultraviolet::vec::Vec3{x:0.0, y:0.0, z:0.0}, ultraviolet::vec::Vec3{x:20.0, y:20.0, z:20.0}, ultraviolet::vec::Vec3{x:40.0, y:40.0, z:40.0}, ultraviolet::vec::Vec3{x:10.0, y:70.0, z:40.0}, ultraviolet::vec::Vec3{x:50.0, y:90.0, z:35.0}];
     let mut index = 0;
     for platform in platform_positions {
-        println!("{}",platform);
+        //println!("{}",platform);
         spawn(
             &mut frend,
             camera,
@@ -281,53 +297,20 @@ fn main() {
         );
         index += 1;
     }
-
-    // place in world
-    /*spawn(
-        &mut frend,
-        world_mesh,
-        true,
-        13.0,
-        0.0,
-        WORLD_HEIGHT,
-        0.0,
-        0.0,
-        PI,
-        0.0,
-    ); 
-
-    spawn(
-        &mut frend,
-        camera,
-        raccoon_mesh,
-        true,
-        1,
-        5.0,
-        current_raccoon_position.x,
-        current_raccoon_position.y,
-        current_raccoon_position.z,
-        0.0,
-        PI,
-        0.0,
-    );
-
-    spawn(
-        &mut frend,
-        camera,
-        raccoon_mesh,
-        true,
-        0,
-        5.0,
-        current_raccoon_position.x + 100.0,
-        current_raccoon_position.y + 100.0,
-        current_raccoon_position.z + 100.0,
-        0.0,
-        PI,
-        0.0,
-    );
-    */
-
     let mut dy = 0.0;
+    let mut is_on_surface = false;
+
+    pub fn is_on_platform(player_position: Vec3) -> bool {
+        let platform_positions = vec![ultraviolet::vec::Vec3{x:0.0, y:0.0, z:0.0}, ultraviolet::vec::Vec3{x:20.0, y:20.0, z:20.0}, ultraviolet::vec::Vec3{x:40.0, y:40.0, z:40.0}, ultraviolet::vec::Vec3{x:10.0, y:70.0, z:40.0}, ultraviolet::vec::Vec3{x:50.0, y:90.0, z:35.0}];
+
+        for platform in platform_positions{
+            if platform.x > player_position.x - 10.0 && platform.x < player_position.x + 10.0 && platform.z > player_position.z - 10.0 && platform.z < player_position.z + 10.0 && platform.y > player_position.y - 10.0 && platform.y < player_position.y {
+                return true;
+            }
+        }
+        return false;
+
+    }
 
     const DT_FUDGE_AMOUNT: f32 = 0.0002;
     const DT_MAX: f32 = DT * 5.0;
@@ -397,25 +380,30 @@ fn main() {
 
                     // enforce gravity
                     if DO_GRAVITY {
-                        if !is_on_ground {
+                        if !is_on_surface {
                             dy -= GRAVITY_STRENGTH;
                             camera.translation[1] += dy;
                         }
 
-                        // clamp the player's y coordinate to the world height if it falls below it
+                        if is_on_platform( camera.translation.into()) {
+                            is_on_surface = true;
+                        }
+
+                        // if the player falls below the world, go back to the first platform
                         if camera.translation[1] <= WORLD_HEIGHT + PLAYER_HEIGHT {
-                            camera.translation[1] = WORLD_HEIGHT + PLAYER_HEIGHT;
-                            is_on_ground = true;
+                            camera.translation = vec3(0.0, 20.0, 0.0).into();
                             dy = 0.0;
                         }
                     }
 
                     // jumping
-                    if input.is_key_down(input::Key::Space) && is_on_ground {
-                        is_on_ground = false;
+                    if input.is_key_down(input::Key::Space) && is_on_surface {
                         dy = JUMP_STRENGTH;
+                        is_on_surface = false;
+                        
                     }
 
+                    /* 
                     // catching the raccoon!
                     if input.is_mouse_down(MouseButton::Left) {
                         use ndarray::{array, Array1, ArrayView1};
@@ -471,8 +459,11 @@ fn main() {
                             )
                         }
                     }
-
+                    */
+                    
                     //println!("{}, {}, {}", camera.translation[0], camera.translation[1], camera.translation[2]);
+
+                    println!("{}", is_on_platform(camera.translation.into()));
 
                     input.next_frame();
                 }
