@@ -562,7 +562,7 @@ fn main() {
 
                     if is_game_won == false && camera.translation[2] < -200.0 {
                         let sound_data = StaticSoundData::from_file(
-                            "/content/win.ogg",
+                            "content/win.ogg",
                             StaticSoundSettings::default(),
                         )
                         .unwrap();
