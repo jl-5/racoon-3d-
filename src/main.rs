@@ -222,17 +222,12 @@ fn main() {
     frend.meshes.set_camera(&frend.gpu, camera);
     frend.flats.set_camera(&frend.gpu, camera);
 
-    let mut player_transform: Transform3D = Transform3D {
-        translation: (camera.translation),
-        scale: (1.0),
-        rotation: (camera.rotation),
-    };
-
     let mut rng = rand::thread_rng();
 
     // create instance_count of specified mesh
     let raccoon_mesh = create_mesh_flatten_multiple(&cache, &mut frend, "scene", 99);
-    let world_mesh = create_mesh_flatten_multiple(&cache, &mut frend, "GraceLiTrial", 1);
+    let world_mesh = create_mesh_flatten_multiple(&cache, &mut frend, "v2", 1);
+    let flag_mesh = create_mesh_flatten_multiple(&cache, &mut frend, "flag", 1);
 
     // GAME LOGIC AND OBJECT SPAWNING GOES HERE:
 
@@ -258,9 +253,6 @@ fn main() {
                                   */
     ];
 
-    let mut current_raccoon_position: Vec3 =
-        hiding_positions[rng.gen_range(0..hiding_positions.len())];
-
     // spawn a world below us just so we can see what we're doing
     spawn(
         &mut frend,
@@ -268,7 +260,7 @@ fn main() {
         world_mesh,
         true,
         0,
-        5.0,
+        1.0,
         0.0,
         0.0,
         0.0,
@@ -277,8 +269,40 @@ fn main() {
         0.0,
     );
 
-        let platform_positions = vec![ultraviolet::vec::Vec3{x:0.0, y:0.0, z:0.0}, ultraviolet::vec::Vec3{x:20.0, y:20.0, z:20.0}, ultraviolet::vec::Vec3{x:40.0, y:40.0, z:40.0}, ultraviolet::vec::Vec3{x:10.0, y:70.0, z:40.0}, ultraviolet::vec::Vec3{x:50.0, y:90.0, z:35.0}, ultraviolet::vec::Vec3{x:90.0, y:120.0, z:35.0}, ultraviolet::vec::Vec3{x:80.0, y:120.0, z:80.0}];
-let mut index = 0;
+    // spawn the flag
+    /*
+    spawn(
+        &mut frend,
+        camera,
+        flag_mesh,
+        false,
+        0,
+        50.0,
+        -130.0,
+        170.0,
+        -120.0,
+        0.0,
+        PI,
+        0.0,
+    ); */
+    spawn(
+        &mut frend,
+        camera,
+        flag_mesh,
+        true,
+        0,
+        0.5,
+        -100.0,
+        -50.0,
+        -225.0,
+        3.0*(PI/2.0),
+        0.0,
+        0.0,
+    );
+
+
+        let platform_positions = vec![ultraviolet::vec::Vec3{x:0.0, y:0.0, z:0.0}, ultraviolet::vec::Vec3{x:20.0, y:20.0, z:20.0}, ultraviolet::vec::Vec3{x:40.0, y:40.0, z:40.0}, ultraviolet::vec::Vec3{x:10.0, y:70.0, z:40.0}, ultraviolet::vec::Vec3{x:50.0, y:90.0, z:35.0}, ultraviolet::vec::Vec3{x:90.0, y:120.0, z:35.0}, ultraviolet::vec::Vec3{x:80.0, y:120.0, z:80.0}, ultraviolet::vec::Vec3{x:60.0, y:150.0, z:50.0}, ultraviolet::vec::Vec3{x:30.0, y:170.0, z:30.0}, ultraviolet::vec::Vec3{x:0.0, y:160.0, z:0.0}, ultraviolet::vec::Vec3{x:-50.0, y:160.0, z:-50.0}, ultraviolet::vec::Vec3{x:-100.0, y:160.0, z:-75.0}, ultraviolet::vec::Vec3{x:-120.0, y:180.0, z:-50.0}, ultraviolet::vec::Vec3{x:-110.0, y:210.0, z:-100.0}];
+        let mut index = 0;
     for platform in platform_positions {
         //println!("{}",platform);
         spawn(
@@ -293,7 +317,7 @@ let mut index = 0;
             platform.z,
             0.0,
             PI,
-            0.0,
+            rng.gen_range(0.0..std::f32::consts::TAU),
         );
         index += 1;
     }
@@ -301,10 +325,9 @@ let mut index = 0;
     let mut is_on_surface = false;
 
     pub fn is_on_platform(player_position: Vec3) -> bool {
-        let platform_positions = vec![ultraviolet::vec::Vec3{x:0.0, y:0.0, z:0.0}, ultraviolet::vec::Vec3{x:20.0, y:20.0, z:20.0}, ultraviolet::vec::Vec3{x:40.0, y:40.0, z:40.0}, ultraviolet::vec::Vec3{x:10.0, y:70.0, z:40.0}, ultraviolet::vec::Vec3{x:50.0, y:90.0, z:35.0}, ultraviolet::vec::Vec3{x:90.0, y:120.0, z:35.0}, ultraviolet::vec::Vec3{x:80.0, y:120.0, z:80.0}];
-
+        let platform_positions = vec![ultraviolet::vec::Vec3{x:0.0, y:0.0, z:0.0}, ultraviolet::vec::Vec3{x:20.0, y:20.0, z:20.0}, ultraviolet::vec::Vec3{x:40.0, y:40.0, z:40.0}, ultraviolet::vec::Vec3{x:10.0, y:70.0, z:40.0}, ultraviolet::vec::Vec3{x:50.0, y:90.0, z:35.0}, ultraviolet::vec::Vec3{x:90.0, y:120.0, z:35.0}, ultraviolet::vec::Vec3{x:80.0, y:120.0, z:80.0}, ultraviolet::vec::Vec3{x:60.0, y:150.0, z:50.0}, ultraviolet::vec::Vec3{x:30.0, y:170.0, z:30.0}, ultraviolet::vec::Vec3{x:0.0, y:160.0, z:0.0}, ultraviolet::vec::Vec3{x:-50.0, y:160.0, z:-50.0}, ultraviolet::vec::Vec3{x:-100.0, y:160.0, z:-75.0}, ultraviolet::vec::Vec3{x:-120.0, y:180.0, z:-50.0}, ultraviolet::vec::Vec3{x:-110.0, y:210.0, z:-100.0}];
         for platform in platform_positions{
-            if platform.x > player_position.x - 10.0 && platform.x < player_position.x + 10.0 && platform.z > player_position.z - 10.0 && platform.z < player_position.z + 10.0 && platform.y > player_position.y - 20.0 && platform.y < player_position.y {
+            if platform.x > player_position.x - 15.0 && platform.x < player_position.x + 15.0 && platform.z > player_position.z - 15.0 && platform.z < player_position.z + 15.0 && platform.y > player_position.y - 20.0 && platform.y < player_position.y {
                 return true;
             }
         }
@@ -406,6 +429,11 @@ let mut index = 0;
                         
                     }
 
+                    if is_game_won == false && camera.translation[2] < -200.0 {
+                        is_game_won = true;
+                        println!("You win! You are incredible at shitty 3D platformers.");
+                    }
+
                     /* 
                     // catching the raccoon!
                     if input.is_mouse_down(MouseButton::Left) {
@@ -464,9 +492,8 @@ let mut index = 0;
                     }
                     */
                     
+                    // PRINT POSITION
                     //println!("{}, {}, {}", camera.translation[0], camera.translation[1], camera.translation[2]);
-
-                    println!("{}", is_on_platform(camera.translation.into()));
 
                     input.next_frame();
                 }
