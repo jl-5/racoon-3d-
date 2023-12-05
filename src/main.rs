@@ -6,9 +6,13 @@ use frenderer::{
     Camera3D, PollsterRuntime, Renderer, Transform3D,
 };
 //use glam::*;
-use glam::{Vec3, Quat, EulerRot, vec3};
-use rand::{rngs::ThreadRng, Rng, seq::{SliceRandom, IteratorRandom}};
-use ultraviolet::Rotor3;
+use glam::{vec3, EulerRot, Quat, Vec3};
+use rand::{
+    rngs::ThreadRng,
+    seq::{IteratorRandom, SliceRandom},
+    Rng,
+};
+use ultraviolet::{transform, Rotor3};
 use winit::event::MouseButton;
 
 // to run, do:
@@ -16,7 +20,7 @@ use winit::event::MouseButton;
 
 mod camera;
 
-use std::{f32::consts::{PI, TAU}};
+use std::f32::consts::{PI, TAU};
 
 const DT: f32 = 1.0 / 60.0;
 const BACKGROUND_COLOR: wgpu::Color = Color {
@@ -48,6 +52,7 @@ fn create_mesh_flatten_multiple(
     if mats.is_empty() {
         mats.push([1.0, 0.0, 0.0, 1.0]);
     }
+
     let mut verts = Vec::with_capacity(1024);
     let mut indices = Vec::with_capacity(1024);
     let mut entries = Vec::with_capacity(1);
@@ -79,10 +84,11 @@ fn create_mesh_flatten_multiple(
         assert!(!entry.submeshes.is_empty());
         entries.push(dbg!(entry));
     }
+    // println!("{:?}", entries);
     let sprite_mesh = frend
         .flats
         .add_mesh_group(&frend.gpu, &mats, verts, indices, entries);
-    return sprite_mesh
+    return sprite_mesh;
 }
 
 /*
@@ -94,6 +100,7 @@ fn create_mesh_single_texture(
     cache: &AssetCache,
     frend: &mut Renderer<PollsterRuntime>,
     sprite: &str,
+    instance_count: u32,
 ) -> MeshGroup {
     let sprite_gltf = cache.load::<assets_manager::asset::Gltf>(&sprite).unwrap();
     let game_sprite = sprite_gltf.read();
@@ -105,7 +112,6 @@ fn create_mesh_single_texture(
         Some("texture"), // string concatenation
     );
 
-    const COUNT: usize = 10;
     let prim = game_sprite
         .document
         .meshes()
@@ -130,7 +136,7 @@ fn create_mesh_single_texture(
         verts,
         (0..vert_count as u32).collect(),
         vec![frenderer::meshes::MeshEntry {
-            instance_count: COUNT as u32,
+            instance_count: instance_count,
             submeshes: vec![frenderer::meshes::SubmeshEntry {
                 vertex_base: 0,
                 indices: 0..vert_count as u32,
@@ -140,131 +146,52 @@ fn create_mesh_single_texture(
     return sprite_mesh;
 }
 
-/* perform transformation on mesh
+/* spawns or moves a mesh at a given point
 @params:
 - flat (bool): flattened mesh or not (i.e. MeshGroup was created from create_mesh_flatten_multiple)
-*/
-fn transform_mesh(
-    frend: &mut Renderer<PollsterRuntime>,
-    mesh: MeshGroup,
-    flat: bool,
-    scale: f32,
-    x: f32,
-    y: f32,
-    z: f32,
-    angle_a: f32
-    , angle_b: f32
-    , angle_c: f32
-) {
-    if !flat {
-        for trf in frend.meshes.get_meshes_mut(mesh, 0) {
-            *trf = Transform3D {
-                translation: Vec3 {
-                    x: x,
-                    y: y,
-                    z: z,
-                }
-                .into(),
-                rotation: Quat::from_euler(
-                    EulerRot::XYZ,
-                    angle_a,
-                    angle_b,
-                    angle_c,
-                )
-                .into(),
-                scale: scale,
-            };
-        }
-        frend.meshes.upload_meshes_group(&frend.gpu, mesh);
-    } else {
-        for i in 0..frend.flats.mesh_count(mesh) {
-            for trf in frend.flats.get_meshes_mut(mesh, i) {
-                *trf = Transform3D {
-                    translation: Vec3 {
-                        x: x,
-                        y: y,
-                        z: z,
-                    }
-                    .into(),
-                    rotation: Rotor3::from_euler_angles(
-                        angle_a,
-                        angle_b,
-                        angle_c,
-                    )
-                    .into_quaternion_array(),
-                    scale: scale,
-                };
-            }
-            frend.flats.upload_meshes_group(&frend.gpu, mesh);
-        }
-    }
-}
-
-fn update_transform(frend: &mut Renderer<PollsterRuntime>,
-    mesh: MeshGroup,
-    flat: bool,
-    transform: Transform3D) {
-
-    }
-
-/* spawns a mesh at a given point
-@params:
-- flat (bool): flattened mesh or not (i.e. MeshGroup was created from create_mesh_flatten_multiple)
+- index (usize): index to retrieve object's respective transform3D from get_meshes_mut (0-indexed)
 */
 fn spawn(
     frend: &mut Renderer<PollsterRuntime>,
+    camera: Camera3D,
     mesh: MeshGroup,
     flat: bool,
+    index: usize,
     scale: f32,
     x: f32,
     y: f32,
     z: f32,
     angle_a: f32,
     angle_b: f32,
-    angle_c: f32
+    angle_c: f32,
 ) {
     if !flat {
-        for trf in frend.meshes.get_meshes_mut(mesh, 0) {
-            *trf = Transform3D {
-                translation: Vec3 {
-                    x: x,
-                    y: y,
-                    z: z,
-                }
-                .into(),
-                rotation: Quat::from_euler(
-                    EulerRot::XYZ,
-                    angle_a,
-                    angle_b,
-                    angle_c,
-                )
-                .into(),
-                scale: scale,
-            };
-        }
-        frend.meshes.upload_meshes_group(&frend.gpu, mesh);
+        // retrieve specified Transform3D (which represents the indexth instance of mesh)
+        let transform = &mut frend.meshes.get_meshes_mut(mesh, 0)[index];
+
+        transform.translation = Vec3 { x: x, y: y, z: z }.into();
+        transform.rotation = Quat::from_euler(EulerRot::XYZ, angle_a, angle_b, angle_c).into();
+        transform.scale = scale;
+
+        frend.meshes.upload_meshes(&frend.gpu, mesh, 0, ..);
     } else {
-        for i in 0..frend.flats.mesh_count(mesh) {
-            for trf in frend.flats.get_meshes_mut(mesh, i) {
-                *trf = Transform3D {
-                    translation: Vec3 {
-                        x: x,
-                        y: y,
-                        z: z,
-                    }
-                    .into(),
-                    rotation: Rotor3::from_euler_angles(
-                        angle_a,
-                        angle_b,
-                        angle_c,
-                    )
-                    .into_quaternion_array(),
-                    scale: scale
-                };
-            }
-            frend.flats.upload_meshes_group(&frend.gpu, mesh);
-        }
+        // retrieve specified Transform3D (which represents the indexth instance of mesh)
+        let transform = &mut frend.flats.get_meshes_mut(mesh, 0)[index];
+
+        println!("{:?}", transform);
+
+        transform.translation = Vec3 { x: x, y: y, z: z }.into();
+        transform.rotation =
+            Rotor3::from_euler_angles(angle_a, angle_b, angle_c).into_quaternion_array();
+        transform.scale = scale;
+
+        println!("{:?}", transform);
+
+        frend.flats.upload_meshes(&frend.gpu, mesh, 0, ..);
     }
+
+    frend.meshes.set_camera(&frend.gpu, camera);
+    frend.flats.set_camera(&frend.gpu, camera);
 }
 
 fn main() {
@@ -303,17 +230,9 @@ fn main() {
 
     let mut rng = rand::thread_rng();
 
-    // defines meshes using create_mesh_single_texture or create_gltf_flatten_multiple
-    let fox_mesh = create_mesh_single_texture(&cache, &mut frend, "Fox");
-    let raccoon_mesh = create_mesh_flatten_multiple(&cache, &mut frend, "scene", 10);
-    let world_mesh = create_mesh_flatten_multiple(&cache, &mut frend, "v2", 1);
-
-    // apply transformations
-    //transform_mesh(&mut rng, &mut frend, fox_mesh, false, 0.5, 1.0);
-    //transform_mesh(&mut rng, &mut frend, raccoon_mesh, true, 12.0, 20.0);
-    // frend.meshes.upload_meshes_group(&frend.gpu, world_mesh);
-    //transform_mesh(&mut rng, &mut frend, world_mesh, true, 50.0, 100.0);
-
+    // create instance_count of specified mesh
+    let raccoon_mesh = create_mesh_flatten_multiple(&cache, &mut frend, "scene", 2);
+    // let world_mesh = create_mesh_flatten_multiple(&cache, &mut frend, "GraceLiTrial", 1);
 
     // GAME LOGIC AND OBJECT SPAWNING GOES HERE:
 
@@ -325,14 +244,66 @@ fn main() {
     const PLAYER_HEIGHT: f32 = 25.0;
     const JUMP_STRENGTH: f32 = 3.0;
 
-    let hiding_positions:Vec<Vec3> = vec![vec3(131.0, 25.0, -11.0), vec3(-893.0, 25.0, -853.0), vec3(-270.0, 25.0, 534.0), vec3(605.0, 25.0, -327.0), vec3(300.0, 25.0, -508.0), vec3(-716.0, 25.0, 53.0), vec3(835.0, 25.0, 419.0), vec3(-457.0, 25.0, 196.0), vec3(606.0, 25.0, 0.0)];
+    // vector of possible hiding positions
+    let hiding_positions: Vec<Vec3> = vec![
+        vec3(131.0, 25.0, -11.0), /*
+                                  vec3(-893.0, 25.0, -853.0),
+                                  vec3(-270.0, 25.0, 534.0),
+                                  vec3(605.0, 25.0, -327.0),
+                                  vec3(300.0, 25.0, -508.0),
+                                  vec3(-716.0, 25.0, 53.0),
+                                  vec3(835.0, 25.0, 419.0),
+                                  vec3(-457.0, 25.0, 196.0),
+                                  vec3(606.0, 25.0, 0.0),
+                                  */
+    ];
 
-    let mut current_raccoon_position: Vec3 = hiding_positions[rng.gen_range(0..hiding_positions.len())];
+    let mut current_raccoon_position: Vec3 =
+        hiding_positions[rng.gen_range(0..hiding_positions.len())];
 
-    frend.flats.get_meshes_mut(raccoon_mesh, 0);
+    // place in world
+    /*spawn(
+        &mut frend,
+        world_mesh,
+        true,
+        13.0,
+        0.0,
+        WORLD_HEIGHT,
+        0.0,
+        0.0,
+        PI,
+        0.0,
+    ); */
 
-    spawn(&mut frend, world_mesh, true, 13.0, 0.0, WORLD_HEIGHT, 0.0, 0.0, PI, 0.0);
-    spawn(&mut frend, raccoon_mesh, true, 5.0, current_raccoon_position.x, current_raccoon_position.y, current_raccoon_position.z, 0.0, PI, 0.0);
+    spawn(
+        &mut frend,
+        camera,
+        raccoon_mesh,
+        true,
+        1,
+        5.0,
+        current_raccoon_position.x,
+        current_raccoon_position.y,
+        current_raccoon_position.z,
+        0.0,
+        PI,
+        0.0,
+    );
+
+    spawn(
+        &mut frend,
+        camera,
+        raccoon_mesh,
+        true,
+        0,
+        5.0,
+        current_raccoon_position.x + 100.0,
+        current_raccoon_position.y + 100.0,
+        current_raccoon_position.z + 100.0,
+        0.0,
+        PI,
+        0.0,
+    );
 
     let mut dy = 0.0;
 
@@ -374,14 +345,24 @@ fn main() {
                     acc -= DT;
                     let (mx, _my): (f32, f32) = input.mouse_delta().into();
                     // need to make rot into a quaternion
-                    
+
                     let mut rot = Rotor3::from_quaternion_array(camera.rotation)
                         * Rotor3::from_rotation_xz(mx * std::f32::consts::FRAC_PI_4 * DT);
                     rot.normalize();
                     camera.rotation = rot.into_quaternion_array();
-                    let dx = input.key_axis(winit::event::VirtualKeyCode::A, winit::event::VirtualKeyCode::D);
-                    let dz = input.key_axis(winit::event::VirtualKeyCode::W, winit::event::VirtualKeyCode::S);
-                    let mut dir: ultraviolet::Vec3 = ultraviolet::Vec3 { x: (dx), y: (0.0), z: (dz) };
+                    let dx = input.key_axis(
+                        winit::event::VirtualKeyCode::A,
+                        winit::event::VirtualKeyCode::D,
+                    );
+                    let dz = input.key_axis(
+                        winit::event::VirtualKeyCode::W,
+                        winit::event::VirtualKeyCode::S,
+                    );
+                    let mut dir: ultraviolet::Vec3 = ultraviolet::Vec3 {
+                        x: (dx),
+                        y: (0.0),
+                        z: (dz),
+                    };
 
                     let here = if dir.mag_sq() > 0.0 {
                         dir.normalize();
@@ -417,26 +398,61 @@ fn main() {
                     if input.is_mouse_down(MouseButton::Left) {
                         use ndarray::{array, Array1, ArrayView1};
                         // if distance from raccoon < WINNING_DISTANCE:
-                            // respawn raccoon
-                        pub fn elementwise_subtraction(vec_a: Vec<f32>, vec_b: Vec<f32>) -> Vec<f32> {
+                        // respawn raccoon
+                        pub fn elementwise_subtraction(
+                            vec_a: Vec<f32>,
+                            vec_b: Vec<f32>,
+                        ) -> Vec<f32> {
                             vec_a.into_iter().zip(vec_b).map(|(a, b)| a - b).collect()
                         }
-                        let v = elementwise_subtraction(camera.translation.to_vec(), [current_raccoon_position.x, current_raccoon_position.y, current_raccoon_position.z].to_vec());
-                        let distance = ultraviolet::Vec3::dot(&ultraviolet::Vec3{x: v[0], y: v[1], z: v[2]}, ultraviolet::Vec3{x: v[0], y: v[1], z: v[2]}).sqrt();
+                        let v = elementwise_subtraction(
+                            camera.translation.to_vec(),
+                            [
+                                current_raccoon_position.x,
+                                current_raccoon_position.y,
+                                current_raccoon_position.z,
+                            ]
+                            .to_vec(),
+                        );
+                        let distance = ultraviolet::Vec3::dot(
+                            &ultraviolet::Vec3 {
+                                x: v[0],
+                                y: v[1],
+                                z: v[2],
+                            },
+                            ultraviolet::Vec3 {
+                                x: v[0],
+                                y: v[1],
+                                z: v[2],
+                            },
+                        )
+                        .sqrt();
                         //println!("{}", distance);
                         if distance < 40.0 {
-                            println!("You found me! Can you do it again!"); 
+                            println!("You found me! Can you do it again!");
                             is_game_won = true;
-                            current_raccoon_position = hiding_positions[rng.gen_range(0..hiding_positions.len())];
-                            transform_mesh( &mut frend, raccoon_mesh, true, 5.0, current_raccoon_position.x, current_raccoon_position.y, current_raccoon_position.z, rng.gen_range(0.0..TAU), PI, 0.0)
+                            current_raccoon_position =
+                                hiding_positions[rng.gen_range(0..hiding_positions.len())];
+                            spawn(
+                                &mut frend,
+                                camera,
+                                raccoon_mesh,
+                                true,
+                                0,
+                                5.0,
+                                current_raccoon_position.x,
+                                current_raccoon_position.y,
+                                current_raccoon_position.z,
+                                rng.gen_range(0.0..TAU),
+                                PI,
+                                0.0,
+                            )
                         }
-                        
                     }
 
                     //println!("{}, {}, {}", camera.translation[0], camera.translation[1], camera.translation[2]);
-            
-                    input.next_frame();
 
+                    input.next_frame();
                 }
                 // Render prep
                 frend.meshes.set_camera(&frend.gpu, camera);
